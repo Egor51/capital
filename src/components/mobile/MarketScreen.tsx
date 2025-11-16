@@ -18,7 +18,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({
   playerCash,
   onBuyWithCash,
   onBuyWithMortgage,
-  onNegotiate
+  onNegotiate: _onNegotiate
 }) => {
   if (properties.length === 0) {
     return (

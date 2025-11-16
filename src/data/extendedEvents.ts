@@ -1,4 +1,4 @@
-import { ExtendedMarketEvent, District, PropertyType } from '../types';
+import { ExtendedMarketEvent } from '../types';
 
 export const extendedMarketEvents: ExtendedMarketEvent[] = [
   // Ключевая ставка

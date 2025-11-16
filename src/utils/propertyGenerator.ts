@@ -1,4 +1,4 @@
-import { Property, District, PropertyType, PropertyCondition } from '../types';
+import { Property, District, PropertyType } from '../types';
 
 const streetNames = [
   'Ленина', 'Советская', 'Проспект Мира', 'Набережная', 'Портовый проезд',
@@ -10,7 +10,7 @@ const buildingSeries = [
 ];
 
 export function generatePropertyName(
-  district: District,
+  _district: District,
   type: PropertyType,
   streetIndex: number,
   floor: number,

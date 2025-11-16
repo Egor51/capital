@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Player, Property, MarketState, GameEvent, Difficulty, PropertyStrategy } from './types';
 import { initialMarketProperties, startingCashByDifficulty } from './data/mockData';
 import { initializeMarket } from './utils/marketLogic';
@@ -104,7 +104,7 @@ function App() {
   }, []);
 
   // Автоматическое прохождение времени: 1 игровой месяц = 1 реальная минута
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<Player | null>(null);
   const marketRef = useRef<MarketState | null>(null);
   const eventsRef = useRef<GameEvent[]>([]);
@@ -440,16 +440,6 @@ function App() {
     }
   }, [player, selectedProperty]);
 
-  const handleRestart = useCallback(() => {
-    setDifficulty(null);
-    setPlayer(null);
-    setMarket(null);
-    setMarketProperties(initialMarketProperties);
-    setEvents([]);
-    setCurrentScreen('dashboard');
-    setSelectedProperty(null);
-    setIsPropertyModalOpen(false);
-  }, []);
 
   // Показываем селектор сложности, если игра не начата
   if (!difficulty || !player || !market) {

@@ -1,4 +1,4 @@
-import { Player, Mission, Achievement, Property, District } from '../types';
+import { Player, Mission, Achievement, District } from '../types';
 
 export function updateMissions(
   missions: Mission[],
@@ -95,7 +95,7 @@ export function calculateExperience(
   });
 
   // Опыт за достижения
-  unlockedAchievements.forEach(achievement => {
+  unlockedAchievements.forEach(() => {
     exp += 200; // Базовый опыт за достижение
   });
 

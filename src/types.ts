@@ -20,6 +20,7 @@ export interface Property {
   mortgageId?: string;
   monthsOwned: number;
   isForSale: boolean;
+  salePrice?: number; // Цена, по которой выставлен на продажу
   isUnderRenovation?: boolean;
   renovationMonthsLeft?: number;
 }
