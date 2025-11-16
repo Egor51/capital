@@ -1,0 +1,387 @@
+/* Negotiation Modal */
+.negotiation-modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.negotiation-modal__property {
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.negotiation-modal__property-name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-main);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.negotiation-modal__property-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.negotiation-modal__price-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+}
+
+.negotiation-modal__offer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.negotiation-modal__label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-main);
+}
+
+.negotiation-modal__input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.negotiation-modal__input {
+  width: 100%;
+  padding: var(--spacing-md);
+  padding-right: 50px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  background: var(--bg);
+  color: var(--text-main);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.negotiation-modal__input:focus {
+  border-color: var(--accent);
+}
+
+.negotiation-modal__currency {
+  position: absolute;
+  right: var(--spacing-md);
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.negotiation-modal__discount {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+}
+
+.negotiation-modal__quick-offers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.negotiation-modal__quick-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.negotiation-modal__quick-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.negotiation-modal__quick-btn {
+  flex: 1;
+  min-width: 60px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-main);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.negotiation-modal__quick-btn:active {
+  transform: scale(0.98);
+}
+
+.negotiation-modal__quick-btn--active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.negotiation-modal__range {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.negotiation-modal__range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.negotiation-modal__slider {
+  width: 100%;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-secondary);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.negotiation-modal__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.negotiation-modal__slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+
+.negotiation-modal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* Risk Resolution Modal */
+.risk-resolution {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.risk-resolution__description {
+  padding: var(--spacing-md);
+  background: var(--warning-soft);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+}
+
+.risk-resolution__impact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.risk-resolution__section-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-main);
+  margin: 0;
+}
+
+.risk-resolution__impact-list {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.risk-resolution__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* Flip Price Modal */
+.flip-price-modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.flip-price-modal__property {
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.flip-price-modal__property h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-main);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.flip-price-modal__info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.flip-price-modal__info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+}
+
+.flip-price-modal__price {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.flip-price-modal__label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-main);
+}
+
+.flip-price-modal__input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.flip-price-modal__input {
+  width: 100%;
+  padding: var(--spacing-md);
+  padding-right: 50px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  background: var(--bg);
+  color: var(--text-main);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.flip-price-modal__input:focus {
+  border-color: var(--accent);
+}
+
+.flip-price-modal__currency {
+  position: absolute;
+  right: var(--spacing-md);
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.flip-price-modal__range {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.flip-price-modal__range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.flip-price-modal__slider {
+  width: 100%;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-secondary);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.flip-price-modal__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.flip-price-modal__slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+
+.flip-price-modal__calculations {
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.flip-price-modal__calc-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+}
+
+.flip-price-modal__calc-item--total {
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.flip-price-modal__chance {
+  padding: var(--spacing-md);
+  background: var(--info-soft);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.flip-price-modal__chance-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.flip-price-modal__chance-value {
+  font-size: var(--font-size-xxl);
+  font-weight: var(--font-weight-bold);
+  color: var(--info);
+  margin-bottom: var(--spacing-xs);
+}
+
+.flip-price-modal__chance-hint {
+  font-size: var(--font-size-xs);
+}
+
+.flip-price-modal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* Event item action hint */
+.event-item__action-hint {
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  font-style: italic;
+}
+
