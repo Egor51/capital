@@ -1,24 +1,21 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Player, Property, MarketState, GameEvent, Difficulty, PropertyStrategy } from './types';
-import { initialMarketProperties, startingCashByDifficulty } from './data/mockData';
-import { initializeMarket } from './utils/marketLogic';
-import {
-  processMonth,
-  buyPropertyWithCash,
-  buyPropertyWithMortgage,
-  takeLoanAgainstProperty,
-  startRenovation,
-  changePropertyStrategy,
-  formatMoney
-} from './utils/gameLogic';
+import { Player, Property, MarketState, GameEvent, PropertyStrategy, PropertyRisk, Mission, Achievement } from './types';
+import { formatMoney, changePropertyStrategy } from './utils/gameLogic';
+import { 
+  startRenovationRealtime,
+  buyPropertyWithCashRealtime,
+  buyPropertyWithMortgageRealtime,
+  takeLoanAgainstPropertyRealtime,
+  changePropertyStrategyRealtime
+} from './utils/realtimeLogic';
+import * as syncStateUtils from './utils/syncState';
 import { Dashboard } from './components/mobile/Dashboard';
 import { MarketScreen } from './components/mobile/MarketScreen';
 import { EventsScreen } from './components/mobile/EventsScreen';
 import { MissionsPanel } from './components/mobile/MissionsPanel';
 import { BottomNavigation } from './components/mobile/BottomNavigation';
-import { initialMissions, achievements } from './data/missions';
 import { updateMissions, checkAchievements, calculateLevel } from './utils/missions';
-import { checkPropertyRisks, resolvePropertyRisk } from './utils/propertyRisks';
+import { resolvePropertyRisk } from './utils/propertyRisks';
 import { negotiatePurchase } from './utils/negotiation';
 import { NegotiationModal } from './components/mobile/NegotiationModal';
 import { RiskResolutionModal } from './components/mobile/RiskResolutionModal';
@@ -26,56 +23,74 @@ import { FlipPriceModal } from './components/mobile/FlipPriceModal';
 import { MortgageModal } from './components/mobile/MortgageModal';
 import { Toast } from './components/ui/Toast';
 import { Notification } from './components/ui/Notification';
-import { PropertyRisk } from './types';
-import { ThemeToggle } from './components/ui/ThemeToggle';
-import { useTheme } from './hooks/useTheme';
+import { useGameLoop } from './hooks/useGameLoop';
+import { fetchReferenceData } from './api/mockServer';
+import { hydrateReferenceConfig } from './api/serverConfig';
 import './styles/global.css';
 import './styles/mobile.css';
 
 type Screen = 'dashboard' | 'market' | 'events' | 'missions';
 
-function createInitialPlayer(difficulty: Difficulty): Player {
-  const cash = startingCashByDifficulty[difficulty];
-  return {
-    id: 'player-1',
-    name: 'Игрок',
-    cash,
-    netWorth: cash,
-    loans: [],
-    properties: [],
-    currentMonth: 0,
-    difficulty,
-    totalMonths: 0, // Бессрочная игра
-    experience: 0,
-    level: 1,
-    stats: {
-      totalSales: 0,
-      totalRentIncome: 0,
-      totalRenovations: 0,
-      propertiesOwned: 0
-    }
-  };
-}
-
 function App() {
-  useTheme(); // Инициализируем тему
-  // Фиксированная сложность для всех
-  const DEFAULT_DIFFICULTY: Difficulty = 'normal';
-  
-  // Автоматическая инициализация игры
-  const [player, setPlayer] = useState<Player | null>(() => {
-    const initialPlayer = createInitialPlayer(DEFAULT_DIFFICULTY);
-    return initialPlayer;
-  });
-  const [market, setMarket] = useState<MarketState | null>(() => {
-    return initializeMarket();
-  });
-  const [marketProperties, setMarketProperties] = useState<Property[]>(initialMarketProperties);
+
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [market, setMarket] = useState<MarketState | null>(null);
+  const [marketProperties, setMarketProperties] = useState<Property[]>([]);
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  const [missions, setMissions] = useState(initialMissions);
-  const [playerAchievements, setPlayerAchievements] = useState(achievements);
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [playerAchievements, setPlayerAchievements] = useState<Achievement[]>([]);
+  
+  useEffect(() => {
+    let cancelled = false;
+    
+    async function bootstrap() {
+      setIsBootstrapping(true);
+    try {
+        const [reference, snapshot] = await Promise.all([
+          fetchReferenceData(),
+          syncStateUtils.loadGameState()
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        if (reference) {
+          hydrateReferenceConfig({
+            loanPresets: reference.loanPresets,
+            rentCoefficients: reference.rentCoefficients,
+            priceCoefficients: reference.priceCoefficients,
+            marketPhases: reference.marketPhases
+          });
+        }
+
+        if (snapshot) {
+          const processedState = syncStateUtils.handleGameEntry(snapshot.player, snapshot.market, snapshot.events);
+          setPlayer(processedState.player);
+          setMarket(processedState.market);
+          setEvents(processedState.events);
+          setMarketProperties(snapshot.availableProperties);
+          setMissions(snapshot.missions);
+          setPlayerAchievements(snapshot.achievements);
+      }
+    } catch (error) {
+        console.error('Ошибка инициализации игры:', error);
+      } finally {
+        if (!cancelled) {
+          setIsBootstrapping(false);
+        }
+      }
+    }
+
+    bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   
   // Интерактивные модалки
   const [isNegotiationOpen, setIsNegotiationOpen] = useState(false);
@@ -110,112 +125,59 @@ function App() {
     if (player && market && events.length === 0) {
       setEvents([{
         id: 'start',
-        month: 0,
+        timestamp: Date.now(),
         message: `Игра началась! Стартовый капитал: ${formatMoney(player.cash)}`,
         type: 'info'
       }]);
     }
   }, [player, market, events.length]);
 
-  // Автоматическое прохождение времени: 1 игровой месяц = 1 реальная минута
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const playerRef = useRef<Player | null>(null);
-  const marketRef = useRef<MarketState | null>(null);
-  const eventsRef = useRef<GameEvent[]>([]);
-  const missionsRef = useRef(initialMissions);
-  const achievementsRef = useRef(achievements);
-
-  // Обновляем refs при изменении состояния
+  // Автоматическая синхронизация состояния
   useEffect(() => {
-    playerRef.current = player;
-    marketRef.current = market;
-    eventsRef.current = events;
-    missionsRef.current = missions;
-    achievementsRef.current = playerAchievements;
-  }, [player, market, events, missions, playerAchievements]);
+    if (!player || !market || isBootstrapping) {
+      return;
+    }
 
+    const stopAutoSync = syncStateUtils.autoSync(
+      player,
+      market,
+      events,
+      {
+        missions,
+        achievements: playerAchievements,
+        availableProperties: marketProperties
+      },
+      30000
+    );
+      return stopAutoSync;
+  }, [player, market, events, missions, playerAchievements, marketProperties, isBootstrapping]);
+
+  const marketPropertiesRef = useRef<Property[]>([]);
   useEffect(() => {
-    // Запускаем таймер только если игра начата (бессрочная игра)
-    if (player && market) {
-      intervalRef.current = setInterval(() => {
-        const currentPlayer = playerRef.current;
-        const currentMarket = marketRef.current;
-        const currentEvents = eventsRef.current;
+    marketPropertiesRef.current = marketProperties;
+  }, [marketProperties]);
 
-        if (!currentPlayer || !currentMarket) return;
-
-        // Обрабатываем месяц
-        const result = processMonth(currentPlayer, currentMarket, currentEvents);
-        
-        // Проверяем риски на объектах
-        result.player.properties.forEach(prop => {
-          const risk = checkPropertyRisks(prop, result.player.currentMonth);
-          if (risk) {
-            // Добавляем событие о риске
-            result.events.push({
-              id: `risk-${Date.now()}-${prop.id}`,
-              month: result.player.currentMonth,
-              message: `${risk.name} на объекте ${prop.name}. ${risk.description}`,
-              type: 'warning'
-            });
-          }
-        });
-
-        // Обновляем миссии
-        const currentMissions = missionsRef.current || initialMissions;
-        const updatedMissions = updateMissions(currentMissions, result.player);
-        
-        // Проверяем новые выполненные миссии для начисления опыта
-        updatedMissions.forEach(mission => {
-          if (mission.completed && !currentMissions.find(m => m.id === mission.id && m.completed)) {
-            result.player.experience += mission.reward;
-            result.events.push({
-              id: `mission-${Date.now()}-${mission.id}`,
-              month: result.player.currentMonth,
-              message: `🎯 Миссия выполнена: ${mission.title}! +${mission.reward} опыта`,
-              type: 'success'
-            });
-          }
-        });
-
-        // Обновляем достижения
-        const currentAchievements = achievementsRef.current || achievements;
-        const updatedAchievements = checkAchievements(
-          currentAchievements,
-          result.player,
-          {
-            totalSales: result.player.stats.totalSales,
-            totalRentIncome: result.player.stats.totalRentIncome
-          }
-        );
-
-        // Проверяем новые разблокированные достижения
-        updatedAchievements.forEach(achievement => {
-          if (achievement.unlocked && !currentAchievements.find(a => a.id === achievement.id && a.unlocked)) {
-            result.player.experience += 200;
-            result.events.push({
-              id: `achievement-${Date.now()}-${achievement.id}`,
-              month: result.player.currentMonth,
-              message: `🏆 Достижение разблокировано: ${achievement.icon} ${achievement.title}! +200 опыта`,
-              type: 'success'
-            });
-          }
-        });
-
-        // Рассчитываем уровень
-        const levelInfo = calculateLevel(result.player.experience);
-
-        // Проверяем новые события для уведомлений
-        const previousEventsCount = currentEvents.length;
-        const newEventsForNotification = result.events.slice(previousEventsCount);
-        
-        // Показываем уведомления для важных событий
-        newEventsForNotification.forEach(event => {
-          // Уведомления для: продажа, ремонт завершен, ежемесячный платеж, аренда
-          if (event.message.includes('Продана') || 
-              event.message.includes('ремонт завершён') ||
-              event.message.includes('Ежемесячный платёж') ||
-              event.message.includes('Аренда')) {
+  useGameLoop({
+    isEnabled: Boolean(player && market && !isBootstrapping),
+    player,
+    market,
+    events,
+    missions,
+    achievements: playerAchievements,
+    availableProperties: marketProperties,
+    onStateChange: ({ player: nextPlayer, market: nextMarket, events: nextEvents, missions: nextMissions, achievements: nextAchievements }) => {
+      setPlayer(nextPlayer);
+      setMarket(nextMarket);
+      setEvents(nextEvents);
+      setMissions(nextMissions);
+      setPlayerAchievements(nextAchievements);
+      void syncStateUtils.saveGameState(nextPlayer, nextMarket, nextEvents, {
+        missions: nextMissions,
+        achievements: nextAchievements,
+        availableProperties: marketPropertiesRef.current
+      });
+    },
+    onNotification: (event) => {
             setNotification({
               id: `notif-${event.id}`,
               message: event.message,
@@ -224,32 +186,6 @@ function App() {
             });
           }
         });
-
-        // Обновляем состояние
-        setPlayer({
-          ...result.player,
-          level: levelInfo.level
-        });
-        setMarket(result.market);
-        setEvents(result.events);
-        setMissions(updatedMissions);
-        setPlayerAchievements(updatedAchievements);
-      }, 60000); // 60000 мс = 1 минута
-
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-      };
-    } else {
-      // Останавливаем таймер, если игра не начата
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-  }, [player, market, missions, playerAchievements]);
 
   const handleBuyWithCash = useCallback((property: Property) => {
     if (!player) return;
@@ -269,7 +205,7 @@ function App() {
   const handleMortgageConfirm = useCallback(() => {
     if (!player || !mortgageProperty) return;
 
-    const result = buyPropertyWithMortgage(player, mortgageProperty);
+    const result = buyPropertyWithMortgageRealtime(player, mortgageProperty);
     if (result.success) {
       setPlayer(result.player);
       setMarketProperties(prev => prev.filter(p => p.id !== mortgageProperty.id));
@@ -296,7 +232,7 @@ function App() {
     } else {
       setEvents(prev => [...prev, {
         id: `error-${Date.now()}`,
-        month: player.currentMonth,
+        timestamp: Date.now(),
         message: result.message,
         type: 'error'
       }]);
@@ -316,7 +252,7 @@ function App() {
   const handleNegotiationConfirm = useCallback((price: number) => {
     if (!player || !negotiationProperty) return;
 
-    const negotiation = negotiatePurchase(negotiationProperty, price, DEFAULT_DIFFICULTY);
+    const negotiation = negotiatePurchase(negotiationProperty, price, player.difficulty);
     
     if (negotiation.success) {
       // Покупаем по согласованной цене
@@ -326,7 +262,7 @@ function App() {
         currentValue: negotiation.finalPrice
       };
       
-      const result = buyPropertyWithCash(player, propertyWithNewPrice);
+      const result = buyPropertyWithCashRealtime(player, propertyWithNewPrice);
       if (result.success) {
         setPlayer(result.player);
         setMarketProperties(prev => prev.filter(p => p.id !== negotiationProperty.id));
@@ -353,7 +289,7 @@ function App() {
     } else {
       setEvents(prev => [...prev, {
         id: `negotiation-${Date.now()}`,
-        month: player.currentMonth,
+        timestamp: Date.now(),
         message: negotiation.message,
         type: 'warning'
       }]);
@@ -367,27 +303,19 @@ function App() {
 
   const handleStrategyChange = useCallback((property: Property, strategy: PropertyStrategy) => {
     if (!player) return;
-    
-    // Устанавливаем выбранное свойство для обработки
-    setSelectedProperty(property);
 
     // Если выбираем flip, открываем модалку для установки цены
     if (strategy === 'flip') {
+      setSelectedProperty(property);
       setIsFlipPriceOpen(true);
     } else {
-      const newPlayer = changePropertyStrategy(player, property, strategy);
-      setPlayer(newPlayer);
-      
-      // Обновляем выбранное свойство из нового списка
-      const updatedProperty = newPlayer.properties.find(p => p.id === property.id);
-      if (updatedProperty) {
-        setSelectedProperty(updatedProperty);
-      }
+      const updatedPlayer = changePropertyStrategyRealtime(player, property, strategy);
+      setPlayer(updatedPlayer);
       
       // Добавляем событие
       setEvents(prev => [...prev, {
         id: `strategy-${Date.now()}`,
-        month: player.currentMonth,
+        timestamp: Date.now(),
         message: `Стратегия для ${property.name} изменена на "${strategy === 'hold' ? 'Держать' : strategy === 'rent' ? 'Сдавать в аренду' : 'Перепродавать'}"`,
         type: 'success'
       }]);
@@ -429,7 +357,7 @@ function App() {
     // Устанавливаем выбранное свойство для обработки
     setSelectedProperty(property);
 
-    const result = startRenovation(player, property, type);
+    const result = startRenovationRealtime(player, property, type);
     if (result.success) {
       setPlayer(result.player);
       
@@ -464,7 +392,7 @@ function App() {
       
       setEvents(prev => [...prev, {
         id: `renovation-${Date.now()}`,
-        month: player.currentMonth,
+        timestamp: Date.now(),
         message: `${successMessage}. ${result.message}`,
         type: 'success'
       }]);
@@ -499,7 +427,7 @@ function App() {
     // Устанавливаем выбранное свойство для обработки
     setSelectedProperty(property);
 
-    const result = takeLoanAgainstProperty(player, property);
+    const result = takeLoanAgainstPropertyRealtime(player, property);
     if (result.success) {
       setPlayer(result.player);
       
@@ -511,14 +439,14 @@ function App() {
       
       setEvents(prev => [...prev, {
         id: `loan-${Date.now()}`,
-        month: player.currentMonth,
+        timestamp: Date.now(),
         message: `💰 ${result.message}`,
         type: 'success'
       }]);
     } else {
       setEvents(prev => [...prev, {
         id: `error-${Date.now()}`,
-        month: player.currentMonth,
+        timestamp: Date.now(),
         message: `❌ ${result.message}`,
         type: 'error'
       }]);
@@ -526,9 +454,14 @@ function App() {
   }, [player, selectedProperty]);
 
 
-  // Игра всегда инициализирована
-  if (!player || !market) {
-    return null; // Или можно показать загрузку
+  if (isBootstrapping || !player || !market) {
+    return (
+      <div className="app app--loading">
+        <div className="app__content">
+          <p>Загружаем данные с сервера...</p>
+        </div>
+      </div>
+    );
   }
 
   // Игра бессрочная, экран окончания игры убран
@@ -536,11 +469,6 @@ function App() {
 
   return (
     <div className="app">
-      {/* Theme Toggle */}
-      <div className="app__theme-toggle">
-        <ThemeToggle />
-      </div>
-
       {/* Main Content */}
       <div className="app__content">
         {currentScreen === 'dashboard' && (
@@ -711,7 +639,7 @@ function App() {
           isOpen={isMortgageModalOpen}
           property={mortgageProperty}
           playerCash={player.cash}
-          difficulty={DEFAULT_DIFFICULTY}
+          difficulty={player.difficulty}
           onConfirm={handleMortgageConfirm}
           onClose={() => {
             setIsMortgageModalOpen(false);

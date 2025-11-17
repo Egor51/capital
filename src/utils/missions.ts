@@ -1,4 +1,4 @@
-import { Player, Mission, Achievement, District } from '../types';
+import { Player, Mission, Achievement, District, GameEvent } from '../types';
 
 export function updateMissions(
   missions: Mission[],
@@ -16,7 +16,7 @@ export function updateMissions(
       case 'monthly_rent':
         current = player.properties
           .filter(p => p.strategy === 'rent' && !p.isUnderRenovation)
-          .reduce((sum, p) => sum + p.baseMonthlyRent, 0);
+          .reduce((sum, p) => sum + (p.baseRent || 0), 0);
         break;
       case 'districts':
         const districts = new Set<District>();
@@ -134,6 +134,69 @@ export function calculateLevel(experience: number): { level: number; expToNext: 
     level: 1,
     expToNext: 500,
     title: 'Начинающий инвестор'
+  };
+}
+
+export function applyMissionRewards(
+  previousMissions: Mission[],
+  nextMissions: Mission[],
+  player: Player
+): { player: Player; missions: Mission[]; events: GameEvent[] } {
+  let accumulatedExperience = 0;
+  const rewardEvents: GameEvent[] = [];
+
+  nextMissions.forEach(mission => {
+    const wasCompleted = previousMissions.some(prev => prev.id === mission.id && prev.completed);
+    if (mission.completed && !wasCompleted) {
+      accumulatedExperience += mission.reward;
+      rewardEvents.push({
+        id: `mission-${Date.now()}-${mission.id}`,
+        timestamp: Date.now(),
+        message: `🎯 Миссия выполнена: ${mission.title}! +${mission.reward} опыта`,
+        type: 'success'
+      });
+    }
+  });
+
+  return {
+    player: {
+      ...player,
+      experience: player.experience + accumulatedExperience
+    },
+    missions: nextMissions,
+    events: rewardEvents
+  };
+}
+
+export function applyAchievementRewards(
+  previousAchievements: Achievement[],
+  nextAchievements: Achievement[],
+  player: Player
+): { player: Player; achievements: Achievement[]; events: GameEvent[] } {
+  let accumulatedExperience = 0;
+  const rewardEvents: GameEvent[] = [];
+  const ACHIEVEMENT_REWARD = 200;
+
+  nextAchievements.forEach(achievement => {
+    const wasUnlocked = previousAchievements.some(prev => prev.id === achievement.id && prev.unlocked);
+    if (achievement.unlocked && !wasUnlocked) {
+      accumulatedExperience += ACHIEVEMENT_REWARD;
+      rewardEvents.push({
+        id: `achievement-${Date.now()}-${achievement.id}`,
+        timestamp: Date.now(),
+        message: `🏆 Достижение разблокировано: ${achievement.icon} ${achievement.title}! +${ACHIEVEMENT_REWARD} опыта`,
+        type: 'success'
+      });
+    }
+  });
+
+  return {
+    player: {
+      ...player,
+      experience: player.experience + accumulatedExperience
+    },
+    achievements: nextAchievements,
+    events: rewardEvents
   };
 }
 

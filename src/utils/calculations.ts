@@ -43,11 +43,15 @@ export function calculateRentIncome(
   }
 
   // Базовая аренда с учётом рыночного индекса
-  let rent = property.baseMonthlyRent * market.rentIndex;
+  const baseRent = property.baseRent || 0;
+  let rent = baseRent * market.rentIndex;
 
   // Применяем влияние активных событий
   market.activeEvents.forEach(event => {
-    rent *= (1 + event.rentImpactPercent / 100);
+    const modifier = event.rentIndexModifier !== undefined 
+      ? event.rentIndexModifier 
+      : (event.rentImpactPercent || 0);
+    rent *= (1 + modifier / 100);
   });
 
   // Учитываем простой (вакансию)
@@ -96,9 +100,13 @@ export function calculateMonthlyIncome(
   let rentIncome = 0;
   properties.forEach(prop => {
     if (prop.strategy === "rent" && !prop.isUnderRenovation) {
-      let rent = prop.baseMonthlyRent * market.rentIndex;
+      const baseRent = prop.baseRent || 0;
+      let rent = baseRent * market.rentIndex;
       market.activeEvents.forEach(event => {
-        rent *= (1 + event.rentImpactPercent / 100);
+        const modifier = event.rentIndexModifier !== undefined 
+          ? event.rentIndexModifier 
+          : (event.rentImpactPercent || 0);
+        rent *= (1 + modifier / 100);
       });
       // Учитываем вероятность вакансии (ожидаемое значение)
       rent *= (1 - market.vacancyRate / 100);
@@ -130,7 +138,10 @@ export function updatePropertyValue(
 
   // Применяем влияние активных событий
   market.activeEvents.forEach(event => {
-    newValue *= (1 + event.priceImpactPercent / 100);
+    const modifier = event.priceIndexModifier !== undefined 
+      ? event.priceIndexModifier 
+      : (event.priceImpactPercent || 0);
+    newValue *= (1 + modifier / 100);
   });
 
   // Применяем общий индекс цен

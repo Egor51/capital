@@ -42,7 +42,7 @@ export const MarketProperties: React.FC<MarketPropertiesProps> = ({
                   <div><strong>Район:</strong> {property.district}</div>
                   <div><strong>Тип:</strong> {property.type}</div>
                   <div><strong>Состояние:</strong> {property.condition}</div>
-                  <div><strong>Аренда:</strong> {formatMoney(property.baseMonthlyRent)}/мес</div>
+                  <div><strong>Аренда:</strong> {formatMoney(property.baseRent || 0)}/период</div>
                   <div><strong>Расходы:</strong> {formatMoney(property.monthlyExpenses)}/мес</div>
                 </div>
                 <div style={styles.actions}>

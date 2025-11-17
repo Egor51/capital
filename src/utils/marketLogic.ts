@@ -5,13 +5,18 @@ import { extendedMarketEvents } from '../data/extendedEvents';
 /**
  * Инициализирует начальное состояние рынка
  */
-export function initializeMarket(): MarketState {
+export function initializeMarket(cityId: string = 'murmansk'): MarketState {
+  const now = Date.now();
   return {
-    currentPhase: "стабильность",
+    cityId,
+    phase: "стабильность",
     priceIndex: 1.0,
     rentIndex: 1.0,
     vacancyRate: 0.05, // 5% базовый простой
-    activeEvents: []
+    activeEvents: [],
+    lastUpdatedAt: now,
+    // Устаревшие поля для обратной совместимости
+    currentPhase: "стабильность"
   };
 }
 
@@ -66,31 +71,58 @@ export function updateMarketIndexes(
 }
 
 /**
- * Проверяет и активирует рыночные события
+ * Проверяет и активирует рыночные события (реальное время)
  */
 export function checkAndActivateEvents(
   market: MarketState,
-  month: number
+  monthOrTimestamp: number
 ): MarketState {
+  const now = Date.now();
   const activeEvents = [...market.activeEvents];
 
-  // Удаляем завершившиеся события
+  // Удаляем завершившиеся события (по timestamp)
   const stillActive = activeEvents.filter(event => {
-    const endMonth = event.monthImpactStart + event.durationMonths;
-    return month < endMonth;
+    if (event.endsAt) {
+      return now < event.endsAt;
+    }
+    // Обратная совместимость: если есть monthImpactStart, используем старую логику
+    if (event.monthImpactStart !== undefined && event.durationMonths !== undefined) {
+      const endMonth = event.monthImpactStart + event.durationMonths;
+      return monthOrTimestamp < endMonth;
+    }
+    return true;
   });
 
-  // Проверяем новые события из базового списка
+  // Проверяем новые события из базового списка (по timestamp)
   mockMarketEvents.forEach(event => {
-    if (month === event.monthImpactStart) {
-      stillActive.push(event);
+    if (event.startsAt && now >= event.startsAt && now < event.endsAt) {
+      // Проверяем, не добавлено ли уже это событие
+      if (!stillActive.find(e => e.id === event.id)) {
+        stillActive.push(event);
+      }
+    } else if (event.monthImpactStart !== undefined) {
+      // Обратная совместимость
+      if (monthOrTimestamp === event.monthImpactStart) {
+        if (!stillActive.find(e => e.id === event.id)) {
+          stillActive.push(event);
+        }
+      }
     }
   });
 
-  // Проверяем расширенные события
+  // Проверяем расширенные события (по timestamp)
   extendedMarketEvents.forEach(event => {
-    if (month === event.monthImpactStart) {
-      stillActive.push(event);
+    if (event.startsAt && now >= event.startsAt && now < event.endsAt) {
+      if (!stillActive.find(e => e.id === event.id)) {
+        stillActive.push(event);
+      }
+    } else if (event.monthImpactStart !== undefined) {
+      // Обратная совместимость
+      if (monthOrTimestamp === event.monthImpactStart) {
+        if (!stillActive.find(e => e.id === event.id)) {
+          stillActive.push(event);
+        }
+      }
     }
   });
 

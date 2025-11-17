@@ -67,7 +67,9 @@ export const EventsScreen: React.FC<EventsScreenProps> = ({ events, onRiskClick 
                 <div className="event-item__header">
                   <span className="event-item__icon">{getEventIcon(event.type)}</span>
                   <span className="event-item__month text-secondary">
-                    Месяц {event.month + 1}
+                    {event.timestamp 
+                      ? new Date(event.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                      : event.month !== undefined ? `Месяц ${event.month + 1}` : 'Сейчас'}
                   </span>
                 </div>
                 <div className="event-item__message">

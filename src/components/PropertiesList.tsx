@@ -61,7 +61,7 @@ export const PropertiesList: React.FC<PropertiesListProps> = ({
                       <strong>Покупная цена:</strong> {formatMoney(property.purchasePrice)}
                     </div>
                     <div style={styles.detailItem}>
-                      <strong>Аренда:</strong> {formatMoney(property.baseMonthlyRent)}/мес
+                      <strong>Аренда:</strong> {formatMoney(property.baseRent || 0)}/период
                     </div>
                     <div style={styles.detailItem}>
                       <strong>Расходы:</strong> {formatMoney(property.monthlyExpenses)}/мес
@@ -76,7 +76,7 @@ export const PropertiesList: React.FC<PropertiesListProps> = ({
                     )}
                     {property.isUnderRenovation && (
                       <div style={styles.detailItem}>
-                        <strong>Ремонт:</strong> осталось {property.renovationMonthsLeft} месяцев
+                        <strong>Ремонт:</strong> осталось {property.renovationEndsAt ? Math.ceil((property.renovationEndsAt - Date.now()) / 60000) : 0} минут
                       </div>
                     )}
                   </div>

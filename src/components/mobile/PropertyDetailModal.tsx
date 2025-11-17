@@ -61,7 +61,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
             </div>
             <div className="property-detail__info-item">
               <span className="text-secondary">Аренда</span>
-              <strong>{formatMoney(property.baseMonthlyRent)}/мес</strong>
+              <strong>{formatMoney(property.baseRent || 0)}/период</strong>
             </div>
             <div className="property-detail__info-item">
               <span className="text-secondary">Расходы</span>
@@ -91,7 +91,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
         {property.isUnderRenovation && (
           <div className="property-detail__section">
             <div className="property-detail__renovation-status">
-              🔨 Ремонт в процессе. Осталось {property.renovationMonthsLeft} месяцев
+              🔨 Ремонт в процессе. Осталось {property.renovationEndsAt ? Math.ceil((property.renovationEndsAt - Date.now()) / 60000) : 0} минут
             </div>
           </div>
         )}

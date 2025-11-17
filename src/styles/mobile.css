@@ -448,6 +448,47 @@
   padding: var(--spacing-xs) var(--spacing-sm);
 }
 
+/* Прогресс ремонта */
+.property-card__renovation-progress {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: rgba(var(--accent-rgb), 0.1);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+}
+
+.property-card__renovation-indicator {
+  margin-top: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  padding: 0 var(--spacing-md);
+}
+
+.property-card__renovation-badge--compact {
+  width: 100%;
+  text-align: center;
+}
+
+.property-card__renovation-progress-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.renovation-progress {
+  width: 100%;
+}
+
+.renovation-progress__time {
+  margin-top: var(--spacing-xs);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 .property-card__renovation-badge {
   padding: var(--spacing-xs) var(--spacing-sm);
   background: rgba(255, 102, 0, 0.9);
@@ -1151,13 +1192,6 @@
   position: relative;
 }
 
-.app__theme-toggle {
-  position: fixed;
-  top: calc(var(--container-padding) + env(safe-area-inset-top));
-  right: var(--container-padding);
-  z-index: 200;
-}
-
 .app__content {
   flex: 1;
   overflow-y: auto;
@@ -1312,27 +1346,6 @@
 
 .game-over__restart-button {
   margin-top: var(--spacing-md);
-}
-
-/* Theme Toggle */
-.theme-toggle {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-full);
-  border: none;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-soft);
-  font-size: 20px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--transition-fast);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.theme-toggle:active {
-  transform: scale(0.95);
 }
 
 /* Utility classes for colors */

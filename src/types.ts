@@ -1,70 +1,126 @@
 export type District = "Центр" | "Спальный район" | "Возле порта" | "Отдалённый район";
 export type PropertyType = "Квартира" | "Студия" | "Коммерция" | "Комната";
 export type PropertyCondition = "убитая" | "требует ремонта" | "нормальная" | "после ремонта";
-export type PropertyStrategy = "hold" | "rent" | "flip" | null;
+export type PropertyStrategy = "none" | "hold" | "rent" | "flip";
 export type LoanType = "ипотека" | "залог" | "потребкредит";
 export type MarketPhase = "рост" | "стабильность" | "кризис";
 export type Difficulty = "easy" | "normal" | "hard";
 
+// Город
+export interface City {
+  id: string;
+  name: string;
+  districtModifiers: Record<District, {
+    priceMultiplier: number;
+    rentMultiplier: number;
+  }>;
+  basePriceIndex: number;
+  baseRentIndex: number;
+}
+
+// Конфигурация таймеров (в миллисекундах)
+export interface GameTimers {
+  rentIntervalMs: number;        // Интервал начисления аренды (по умолчанию 1 минута = 60000)
+  loanPaymentIntervalMs: number;  // Интервал платежей по кредитам (по умолчанию 1 минута = 60000)
+  renovationCheckIntervalMs: number; // Интервал проверки ремонта (по умолчанию 1 секунда = 1000)
+  marketUpdateIntervalMs: number;   // Интервал обновления рынка (по умолчанию 1 минута = 60000)
+}
+
 export interface Property {
   id: string;
+  cityId: string;              // ID города
   name: string;
   district: District;
   type: PropertyType;
-  purchasePrice: number;
-  currentValue: number;
-  baseMonthlyRent: number;
+  purchasePrice: number;        // Цена покупки (неизменна)
+  currentValue: number;        // Текущая серверная оценка
+  baseRent: number;            // Базовая аренда (переименовано из baseMonthlyRent)
   condition: PropertyCondition;
   strategy: PropertyStrategy;
   monthlyExpenses: number;
-  mortgageId?: string;
-  monthsOwned: number;
-  isForSale: boolean;
-  salePrice?: number; // Цена, по которой выставлен на продажу
-  isUnderRenovation?: boolean;
-  renovationMonthsLeft?: number;
+  loanId?: string;             // ID кредита (ипотека или залог)
+  
+  // Таймеры реального времени
+  rentIntervalMs: number;     // Интервал начисления аренды
+  nextRentAt: number | null;   // Timestamp следующего начисления аренды
+  isUnderRenovation: boolean;
+  renovationStartsAt?: number | null; // Timestamp начала ремонта (для прогресса)
+  renovationEndsAt: number | null; // Timestamp завершения ремонта
+  
+  // Устаревшие поля (для обратной совместимости)
+  mortgageId?: string;         // Deprecated, используйте loanId
+  monthsOwned?: number;        // Deprecated, используйте timestamps
+  isForSale?: boolean;         // Deprecated, используйте strategy === "flip"
+  salePrice?: number;          // Цена, по которой выставлен на продажу (для flip)
 }
 
 export interface Loan {
   id: string;
-  propertyId?: string;
-  principal: number;
-  interestRate: number;
-  monthlyPayment: number;
-  remainingTermMonths: number;
+  playerId: string;            // ID игрока
+  propertyId?: string;         // ID объекта (если залог/ипотека)
+  principal: number;           // Первоначальная сумма
+  remainingPrincipal: number; // Остаток по кредиту
+  annualRate: number;         // Годовая процентная ставка
+  monthlyPayment: number;      // Ежемесячный платёж
   type: LoanType;
-  remainingPrincipal: number;
+  
+  // Таймеры реального времени
+  paymentIntervalMs: number;  // Интервал платежей (по умолчанию 1 минута = 60000)
+  nextPaymentAt: number;      // Timestamp следующего платежа
+  
+  // Устаревшие поля (для обратной совместимости)
+  interestRate?: number;      // Deprecated, используйте annualRate
+  remainingTermMonths?: number; // Deprecated, рассчитывается автоматически
 }
 
 export interface MarketEvent {
   id: string;
+  cityId: string;             // ID города
   name: string;
   description: string;
-  monthImpactStart: number;
-  durationMonths: number;
-  priceImpactPercent: number;
-  rentImpactPercent: number;
-  vacancyImpactPercent: number;
+  
+  // Реальное время вместо месяцев
+  startsAt: number;         // Timestamp начала события
+  endsAt: number;            // Timestamp окончания события
+  
+  // Модификаторы (в процентах)
+  priceIndexModifier: number;    // Изменение индекса цен (%)
+  rentIndexModifier: number;     // Изменение индекса аренды (%)
+  vacancyModifier: number;        // Изменение простоя (%)
+  
+  // Устаревшие поля (для обратной совместимости)
+  monthImpactStart?: number;      // Deprecated
+  durationMonths?: number;        // Deprecated
+  priceImpactPercent?: number;    // Deprecated, используйте priceIndexModifier
+  rentImpactPercent?: number;      // Deprecated, используйте rentIndexModifier
+  vacancyImpactPercent?: number;   // Deprecated, используйте vacancyModifier
 }
 
 export interface MarketState {
-  currentPhase: MarketPhase;
-  priceIndex: number;
-  rentIndex: number;
-  vacancyRate: number;
+  cityId: string;            // ID города
+  phase: MarketPhase;        // Переименовано из currentPhase
+  priceIndex: number;        // Множитель цен (0.7—1.3)
+  rentIndex: number;         // Множитель аренды (0.8—1.2)
+  vacancyRate: number;       // Вероятность простоя (0.02—0.15)
   activeEvents: MarketEvent[];
+  lastUpdatedAt: number;     // Timestamp последнего обновления
+  
+  // Устаревшие поля (для обратной совместимости)
+  currentPhase?: MarketPhase; // Deprecated, используйте phase
 }
 
 export interface Player {
   id: string;
   name: string;
-  cash: number;
+  cash: number;              // Свободные деньги (₽)
+  softCurrency?: number;     // MRC (если Web3)
+  hardCurrency?: number;     // MURT (если Web3)
   netWorth: number;
   loans: Loan[];
   properties: Property[];
-  currentMonth: number;
+  cityId: string;           // Текущий город
   difficulty: Difficulty;
-  totalMonths: number;
+  
   // Новая система геймификации
   experience: number;
   level: number;
@@ -74,13 +130,24 @@ export interface Player {
     totalRenovations: number;
     propertiesOwned: number;
   };
+  
+  // Timestamps для синхронизации
+  lastSyncedAt: number;     // Timestamp последней синхронизации с сервером
+  createdAt: number;        // Timestamp создания игрока
+  
+  // Устаревшие поля (для обратной совместимости)
+  currentMonth?: number;    // Deprecated, используйте timestamps
+  totalMonths?: number;      // Deprecated
 }
 
 export interface GameEvent {
   id: string;
-  month: number;
+  timestamp?: number;        // Timestamp события (опционально для обратной совместимости)
   message: string;
   type: "info" | "success" | "warning" | "error";
+  
+  // Устаревшие поля (для обратной совместимости)
+  month?: number;            // Deprecated, используйте timestamp
 }
 
 export interface LoanPreset {
@@ -136,11 +203,15 @@ export interface PropertyRisk {
   impact: {
     valueChange?: number; // Изменение стоимости
     requiresRenovation?: boolean;
-    monthsWithoutRent?: number;
+    rentPeriodsWithoutIncome?: number; // Количество периодов без аренды
   };
   resolved: boolean;
-  month: number;
+  timestamp?: number;         // Timestamp возникновения риска (опционально для обратной совместимости)
   actionTaken?: 'fixed' | 'ignored' | 'delayed';
+  
+  // Устаревшие поля (для обратной совместимости)
+  month?: number;           // Deprecated, используйте timestamp
+  monthsWithoutRent?: number; // Deprecated, используйте rentPeriodsWithoutIncome
 }
 
 // Торг при покупке
@@ -166,7 +237,7 @@ export interface ExtendedMarketEvent extends MarketEvent {
   eventType: ExtendedMarketEventType;
   affectsDistricts?: District[];
   affectsPropertyTypes?: PropertyType[];
-  mortgageRateChange?: number; // Изменение ставки по ипотеке
+  mortgageRateChange?: number; // Изменение ставки по ипотеке (%)
   repairCostMultiplier?: number; // Множитель стоимости ремонта
 }
 

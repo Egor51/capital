@@ -2,7 +2,7 @@ import { Property, PropertyRisk, PropertyRiskType } from '../types';
 
 const riskChance = 0.05; // 5% вероятность события каждый месяц
 
-export function checkPropertyRisks(property: Property, month: number): PropertyRisk | null {
+export function checkPropertyRisks(property: Property, timestampOrMonth: number): PropertyRisk | null {
   // Не проверяем риски для объектов на продаже или в ремонте
   if (property.isForSale || property.isUnderRenovation) {
     return null;
@@ -36,10 +36,10 @@ export function checkPropertyRisks(property: Property, month: number): PropertyR
     {
       type: 'tenant_left',
       name: 'Арендатор съехал',
-      description: 'Арендатор внезапно съехал. Потерян доход на 2 месяца',
+      description: 'Арендатор внезапно съехал. Потерян доход на 2 периода',
       cost: 0,
       impact: {
-        monthsWithoutRent: 2
+        rentPeriodsWithoutIncome: 2
       },
       strategy: 'rent'
     },
@@ -85,8 +85,9 @@ export function checkPropertyRisks(property: Property, month: number): PropertyR
   // Выбираем случайный риск
   const selectedRisk = availableRisks[Math.floor(Math.random() * availableRisks.length)];
 
+  const now = Date.now();
   return {
-    id: `risk-${Date.now()}-${property.id}`,
+    id: `risk-${now}-${property.id}`,
     propertyId: property.id,
     type: selectedRisk.type,
     name: selectedRisk.name,
@@ -94,7 +95,8 @@ export function checkPropertyRisks(property: Property, month: number): PropertyR
     cost: Math.round(selectedRisk.cost),
     impact: selectedRisk.impact,
     resolved: false,
-    month
+    timestamp: now,
+    month: timestampOrMonth < 1000000000000 ? timestampOrMonth : undefined // Если это timestamp, не сохраняем month
   };
 }
 

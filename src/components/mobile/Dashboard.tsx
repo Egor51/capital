@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Player, MarketState, Property, PropertyStrategy, Loan } from '../../types';
 import { Card } from '../ui/Card';
 import { Tag } from '../ui/Tag';
 import { Button } from '../ui/Button';
+import { ProgressBar } from '../ui/ProgressBar';
 import { formatMoney } from '../../utils/gameLogic';
 import { calculateMonthlyIncome, calculateMonthlyExpenses } from '../../utils/calculations';
 
@@ -134,7 +135,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="dashboard__properties">
         <h2 className="dashboard__section-title mb-md">Ваши объекты ({properties.length})</h2>
         {properties.length === 0 ? (
-          <Card>
+          <Card style={{ marginTop: '16px' }}>
             <div className="text-center text-secondary">
               У вас пока нет объектов недвижимости
             </div>
@@ -215,7 +216,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     return `linear-gradient(135deg, hsl(${imageHue}, ${saturation}%, 40%), hsl(${imageHue}, ${saturation}%, 20%))`;
   };
 
-  // Извлекаем детали из названия
+  // Извлекаем детали из названия или генерируем стабильные значения на основе ID
   const extractDetails = () => {
     const match = property.name.match(/(\d+)\s*этаж.*?(\d+)\s*м²/);
     if (match) {
@@ -224,15 +225,58 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         area: match[2]
       };
     }
+    // Генерируем стабильные значения на основе ID объекта
+    // Используем простой хеш от ID для получения псевдослучайных, но стабильных значений
+    const hash = property.id.split('').reduce((acc, char) => {
+      return ((acc << 5) - acc) + char.charCodeAt(0);
+    }, 0);
+    const stableFloor = Math.abs(hash % 9) + 1;
+    const stableArea = Math.abs(hash % 40) + 25;
     return {
-      floor: Math.floor(Math.random() * 9) + 1,
-      area: Math.floor(Math.random() * 40) + 25
+      floor: stableFloor,
+      area: stableArea
     };
   };
 
   const details = extractDetails();
   const profit = property.currentValue - property.purchasePrice;
   const profitPercent = ((profit / property.purchasePrice) * 100).toFixed(1);
+
+  // Компонент для отображения прогресса ремонта
+  const RenovationProgress: React.FC<{ startsAt: number; endsAt: number }> = ({ startsAt, endsAt }) => {
+    const [progress, setProgress] = useState(0);
+
+    useEffect(() => {
+      const updateProgress = () => {
+        const now = Date.now();
+        const totalDuration = endsAt - startsAt;
+        const elapsed = now - startsAt;
+        const calculatedProgress = Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100);
+        setProgress(calculatedProgress);
+      };
+
+      updateProgress();
+      const interval = setInterval(updateProgress, 1000); // Обновляем каждую секунду
+
+      return () => clearInterval(interval);
+    }, [startsAt, endsAt]);
+
+    const remainingMs = Math.max(0, endsAt - Date.now());
+    const remainingMinutes = Math.ceil(remainingMs / 60000);
+
+    return (
+      <div className="renovation-progress">
+        <ProgressBar 
+          value={progress} 
+          variant="warning"
+          showValue={true}
+        />
+        <div className="renovation-progress__time">
+          Осталось: {remainingMinutes} мин.
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Card 
@@ -273,6 +317,15 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         </div>
       )}
 
+      {/* Индикатор ремонта в компактном виде (только когда карточка закрыта) */}
+      {!isExpanded && property.isUnderRenovation && property.renovationEndsAt && (
+        <div className="property-card__renovation-indicator" onClick={(e) => e.stopPropagation()}>
+          <div className="property-card__renovation-badge property-card__renovation-badge--compact">
+            🔨 Ремонт (завершится через {Math.ceil((property.renovationEndsAt - Date.now()) / 60000)} мин.)
+          </div>
+        </div>
+      )}
+
       {/* Раскрываемая часть */}
       <div className={`property-card__expandable ${isExpanded ? 'property-card__expandable--visible' : ''}`}>
         {/* Изображение */}
@@ -285,9 +338,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             <Tag variant={getConditionVariant(property.condition)} className="property-card__condition-badge">
               {property.condition}
             </Tag>
-            {property.isUnderRenovation && (
+            {property.isUnderRenovation && property.renovationEndsAt && (
               <div className="property-card__renovation-badge">
-                🔨 Ремонт ({property.renovationMonthsLeft} мес.)
+                🔨 Ремонт (завершится через {Math.ceil((property.renovationEndsAt - Date.now()) / 60000)} мин.)
               </div>
             )}
           </div>
@@ -313,7 +366,20 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
           {property.strategy === 'rent' && (
             <div className="property-card__income-info">
               <span className="property-card__income-label">Доход:</span>
-              <span className="property-card__income-value">+{formatMoney(property.baseMonthlyRent)}/мес</span>
+              <span className="property-card__income-value">+{formatMoney(property.baseRent || 0)}/период</span>
+            </div>
+          )}
+
+          {/* Прогресс ремонта */}
+          {property.isUnderRenovation && property.renovationStartsAt && property.renovationEndsAt && (
+            <div className="property-card__renovation-progress">
+              <div className="property-card__renovation-progress-label">
+                🔨 Ремонт в процессе
+              </div>
+              <RenovationProgress 
+                startsAt={property.renovationStartsAt}
+                endsAt={property.renovationEndsAt}
+              />
             </div>
           )}
 

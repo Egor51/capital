@@ -48,8 +48,8 @@ export const RiskResolutionModal: React.FC<RiskResolutionModalProps> = ({
             {risk.impact.requiresRenovation && (
               <li>Требуется ремонт</li>
             )}
-            {risk.impact.monthsWithoutRent && (
-              <li>Потеря аренды: {risk.impact.monthsWithoutRent} месяцев</li>
+            {risk.impact.rentPeriodsWithoutIncome && (
+              <li>Потеря аренды: {risk.impact.rentPeriodsWithoutIncome} периодов</li>
             )}
           </ul>
         </div>

@@ -39,7 +39,11 @@ export const EventsLog: React.FC<EventsLogProps> = ({ events }) => {
           recentEvents.map(event => (
             <div key={event.id} style={getEventStyle(event.type)}>
               <div style={styles.eventHeader}>
-                <span style={styles.month}>Месяц {event.month + 1}</span>
+                <span style={styles.month}>
+                  {event.timestamp 
+                    ? new Date(event.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                    : event.month !== undefined ? `Месяц ${event.month + 1}` : 'Сейчас'}
+                </span>
               </div>
               <div style={styles.eventMessage}>{event.message}</div>
             </div>

@@ -113,7 +113,8 @@ const MarketPropertyCard: React.FC<MarketPropertyCardProps> = ({
   };
 
   const details = extractDetails();
-  const monthlyProfit = property.baseMonthlyRent - property.monthlyExpenses;
+  const baseRent = property.baseRent || 0;
+  const monthlyProfit = baseRent - property.monthlyExpenses;
   const roi = ((monthlyProfit * 12) / property.purchasePrice * 100).toFixed(1);
 
   return (
@@ -160,7 +161,7 @@ const MarketPropertyCard: React.FC<MarketPropertyCardProps> = ({
           <div className="market-property-card__metric">
             <div className="market-property-card__metric-label">Аренда</div>
             <div className="market-property-card__metric-value market-property-card__metric-value--positive">
-              +{formatMoney(property.baseMonthlyRent)}/мес
+              +{formatMoney(property.baseRent || 0)}/период
             </div>
           </div>
           <div className="market-property-card__metric">
