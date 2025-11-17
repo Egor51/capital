@@ -63,45 +63,61 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Financial Status Card */}
       <Card className="dashboard__finance-card">
-        <h2 className="dashboard__section-title">Финансовое состояние</h2>
-        <div className="dashboard__finance-grid">
-          <div className="dashboard__finance-item">
-            <div className="text-secondary mb-sm">Свободные деньги</div>
-            <div className={`dashboard__finance-value ${player.cash < 0 ? 'dashboard__finance-value--negative' : ''}`}>
-              {formatMoney(player.cash)}
-            </div>
-          </div>
-          <div className="dashboard__finance-item">
-            <div className="text-secondary mb-sm">Чистый капитал</div>
-            <div className="dashboard__finance-value dashboard__finance-value--primary">
-              {formatMoney(player.netWorth)}
-            </div>
-          </div>
+        <div className="dashboard__finance-header">
+          <h2 className="dashboard__section-title">💰 Финансовое состояние</h2>
+          <div className="dashboard__finance-status-indicator"></div>
         </div>
-        {/* <div className="dashboard__finance-item mt-md">
-          <div className="text-secondary mb-sm">Долги</div>
-          <div className="dashboard__finance-value">{formatMoney(totalDebt)}</div>
-        </div> */}
-        <div className="dashboard__finance-item mt-md">
-          <div className="text-secondary mb-sm">Расход в месяц</div>
-          <div className="dashboard__finance-value dashboard__finance-value--negative">
-            {formatMoney(monthlyExpenses)}/мес
+        
+        {/* Основные метрики */}
+        <div className="dashboard__finance-main-grid">
+          <div className="dashboard__finance-stat dashboard__finance-stat--capital">
+            <div className="dashboard__finance-stat-icon">💎</div>
+            <div className="dashboard__finance-stat-content">
+              <div className="dashboard__finance-stat-label">КАПИТАЛ</div>
+              <div className="dashboard__finance-stat-value">{formatMoney(player.netWorth)}</div>
+            </div>
+            <div className="dashboard__finance-stat-glow"></div>
           </div>
-        </div>
-        <div className="dashboard__finance-item mt-md">
-          <div className="text-secondary mb-sm">Месячный доход</div>
-          <div className={`dashboard__finance-value ${monthlyIncome >= 0 ? 'dashboard__finance-value--success' : 'dashboard__finance-value--negative'}`}>
-            {monthlyIncome >= 0 ? '+' : ''}{formatMoney(monthlyIncome)}/мес
+          
+          <div className={`dashboard__finance-stat ${player.cash < 0 ? 'dashboard__finance-stat--danger' : 'dashboard__finance-stat--cash'}`}>
+            <div className="dashboard__finance-stat-icon">{player.cash < 0 ? '⚠️' : '💵'}</div>
+            <div className="dashboard__finance-stat-content">
+              <div className="dashboard__finance-stat-label">НАЛИЧНЫЕ</div>
+              <div className="dashboard__finance-stat-value">{formatMoney(player.cash)}</div>
+            </div>
+            <div className="dashboard__finance-stat-glow"></div>
           </div>
         </div>
 
+        {/* Потоки денежных средств */}
+        <div className="dashboard__finance-flows">
+          <div className={`dashboard__finance-flow-card ${monthlyIncome >= 0 ? 'dashboard__finance-flow-card--income' : 'dashboard__finance-flow-card--negative'}`}>
+            <div className="dashboard__finance-flow-header">
+              <span className="dashboard__finance-flow-icon">{monthlyIncome >= 0 ? '📈' : '📉'}</span>
+              <span className="dashboard__finance-flow-label">ДОХОД</span>
+            </div>
+            <div className="dashboard__finance-flow-value">
+              {monthlyIncome >= 0 ? '+' : ''}{formatMoney(monthlyIncome)}<span className="dashboard__finance-flow-period">/мес</span>
+            </div>
+          </div>
+          
+          <div className="dashboard__finance-flow-card dashboard__finance-flow-card--expense">
+            <div className="dashboard__finance-flow-header">
+              <span className="dashboard__finance-flow-icon">📉</span>
+              <span className="dashboard__finance-flow-label">РАСХОД</span>
+            </div>
+            <div className="dashboard__finance-flow-value">
+              {formatMoney(monthlyExpenses)}<span className="dashboard__finance-flow-period">/мес</span>
+            </div>
+          </div>
+        </div>
       </Card>
 
       {/* Properties List */}
       <div className="dashboard__properties">
         <h2 className="dashboard__section-title mb-md">Ваши объекты ({properties.length})</h2>
         {properties.length === 0 ? (
-          <Card>
+          <Card className='mt-4'>
             <div className="text-center text-secondary">
               У вас пока нет объектов недвижимости
             </div>
