@@ -1,0 +1,117 @@
+.notification {
+  position: fixed;
+  top: calc(var(--container-padding) + env(safe-area-inset-top) + 50px);
+  left: var(--container-padding);
+  right: var(--container-padding);
+  max-width: 400px;
+  margin: 0 auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-neon);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-medium);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  z-index: 10000;
+  animation: slideDown 0.3s ease-out;
+  cursor: default;
+}
+
+.notification--clickable {
+  cursor: pointer;
+}
+
+.notification--clickable:hover {
+  border-color: var(--neon-cyan);
+  box-shadow: var(--glow-cyan);
+  transform: translateY(-2px);
+}
+
+.notification--success {
+  border-left: 4px solid var(--neon-green);
+}
+
+.notification--error {
+  border-left: 4px solid var(--error);
+}
+
+.notification--warning {
+  border-left: 4px solid var(--neon-orange);
+}
+
+.notification--info {
+  border-left: 4px solid var(--neon-blue);
+}
+
+.notification__icon {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: rgba(0, 255, 255, 0.1);
+}
+
+.notification--success .notification__icon {
+  color: var(--neon-green);
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.notification--error .notification__icon {
+  color: var(--error);
+  background: rgba(255, 0, 64, 0.1);
+}
+
+.notification--warning .notification__icon {
+  color: var(--neon-orange);
+  background: rgba(255, 102, 0, 0.1);
+}
+
+.notification--info .notification__icon {
+  color: var(--neon-blue);
+  background: rgba(0, 153, 255, 0.1);
+}
+
+.notification__message {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+.notification__close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color var(--transition-fast);
+}
+
+.notification__close:hover {
+  color: var(--text-main);
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+

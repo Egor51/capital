@@ -17,28 +17,28 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         className={`bottom-nav__item ${currentScreen === 'dashboard' ? 'bottom-nav__item--active' : ''}`}
         onClick={() => onScreenChange('dashboard')}
       >
-        <span className="bottom-nav__icon">🏠</span>
+        <span className="bottom-nav__icon">◉</span>
         <span className="bottom-nav__label">Главная</span>
       </button>
       <button
         className={`bottom-nav__item ${currentScreen === 'market' ? 'bottom-nav__item--active' : ''}`}
         onClick={() => onScreenChange('market')}
       >
-        <span className="bottom-nav__icon">🏪</span>
+        <span className="bottom-nav__icon">⬟</span>
         <span className="bottom-nav__label">Рынок</span>
       </button>
       <button
         className={`bottom-nav__item ${currentScreen === 'events' ? 'bottom-nav__item--active' : ''}`}
         onClick={() => onScreenChange('events')}
       >
-        <span className="bottom-nav__icon">📋</span>
+        <span className="bottom-nav__icon">▣</span>
         <span className="bottom-nav__label">Лог</span>
       </button>
       <button
         className={`bottom-nav__item ${currentScreen === 'missions' ? 'bottom-nav__item--active' : ''}`}
         onClick={() => onScreenChange('missions')}
       >
-        <span className="bottom-nav__icon">🎯</span>
+        <span className="bottom-nav__icon">⚡</span>
         <span className="bottom-nav__label">Миссии</span>
       </button>
     </nav>

@@ -11,7 +11,6 @@ import {
   changePropertyStrategy,
   formatMoney
 } from './utils/gameLogic';
-import { DifficultySelector } from './components/DifficultySelector';
 import { Dashboard } from './components/mobile/Dashboard';
 import { MarketScreen } from './components/mobile/MarketScreen';
 import { EventsScreen } from './components/mobile/EventsScreen';
@@ -25,7 +24,9 @@ import { negotiatePurchase } from './utils/negotiation';
 import { NegotiationModal } from './components/mobile/NegotiationModal';
 import { RiskResolutionModal } from './components/mobile/RiskResolutionModal';
 import { FlipPriceModal } from './components/mobile/FlipPriceModal';
+import { MortgageModal } from './components/mobile/MortgageModal';
 import { Toast } from './components/ui/Toast';
+import { Notification } from './components/ui/Notification';
 import { PropertyRisk } from './types';
 import { ThemeToggle } from './components/ui/ThemeToggle';
 import { useTheme } from './hooks/useTheme';
@@ -59,9 +60,17 @@ function createInitialPlayer(difficulty: Difficulty): Player {
 
 function App() {
   useTheme(); // Инициализируем тему
-  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
-  const [player, setPlayer] = useState<Player | null>(null);
-  const [market, setMarket] = useState<MarketState | null>(null);
+  // Фиксированная сложность для всех
+  const DEFAULT_DIFFICULTY: Difficulty = 'normal';
+  
+  // Автоматическая инициализация игры
+  const [player, setPlayer] = useState<Player | null>(() => {
+    const initialPlayer = createInitialPlayer(DEFAULT_DIFFICULTY);
+    return initialPlayer;
+  });
+  const [market, setMarket] = useState<MarketState | null>(() => {
+    return initializeMarket();
+  });
   const [marketProperties, setMarketProperties] = useState<Property[]>(initialMarketProperties);
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
@@ -76,6 +85,8 @@ function App() {
   const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
   const [activeRisk, setActiveRisk] = useState<PropertyRisk | null>(null);
   const [isFlipPriceOpen, setIsFlipPriceOpen] = useState(false);
+  const [isMortgageModalOpen, setIsMortgageModalOpen] = useState(false);
+  const [mortgageProperty, setMortgageProperty] = useState<Property | null>(null);
   
   // Toast notification
   const [toast, setToast] = useState<{
@@ -88,20 +99,25 @@ function App() {
     isVisible: false
   });
 
-  const handleDifficultySelect = useCallback((selectedDifficulty: Difficulty) => {
-    const newPlayer = createInitialPlayer(selectedDifficulty);
-    const newMarket = initializeMarket();
-    
-    setDifficulty(selectedDifficulty);
-    setPlayer(newPlayer);
-    setMarket(newMarket);
-    setEvents([{
-      id: 'start',
-      month: 0,
-      message: `Игра началась! Стартовый капитал: ${formatMoney(newPlayer.cash)}`,
-      type: 'info'
-    }]);
-  }, []);
+  // Push notifications
+  const [notification, setNotification] = useState<{
+    id: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    timestamp: number;
+  } | null>(null);
+
+  // Инициализация событий при первом запуске
+  useEffect(() => {
+    if (player && market && events.length === 0) {
+      setEvents([{
+        id: 'start',
+        month: 0,
+        message: `Игра началась! Стартовый капитал: ${formatMoney(player.cash)}`,
+        type: 'info'
+      }]);
+    }
+  }, [player, market, events.length]);
 
   // Автоматическое прохождение времени: 1 игровой месяц = 1 реальная минута
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -191,6 +207,26 @@ function App() {
         // Рассчитываем уровень
         const levelInfo = calculateLevel(result.player.experience);
 
+        // Проверяем новые события для уведомлений
+        const previousEventsCount = currentEvents.length;
+        const newEventsForNotification = result.events.slice(previousEventsCount);
+        
+        // Показываем уведомления для важных событий
+        newEventsForNotification.forEach(event => {
+          // Уведомления для: продажа, ремонт завершен, ежемесячный платеж, аренда
+          if (event.message.includes('Продана') || 
+              event.message.includes('ремонт завершён') ||
+              event.message.includes('Ежемесячный платёж') ||
+              event.message.includes('Аренда')) {
+            setNotification({
+              id: `notif-${event.id}`,
+              message: event.message,
+              type: event.type,
+              timestamp: Date.now()
+            });
+          }
+        });
+
         // Обновляем состояние
         setPlayer({
           ...result.player,
@@ -225,10 +261,64 @@ function App() {
     setIsNegotiationOpen(true);
   }, [player]);
 
+  const handleBuyWithMortgageClick = useCallback((property: Property) => {
+    if (!player) return;
+    
+    setIsMortgageModalOpen(true);
+    setMortgageProperty(property);
+  }, [player]);
+
+  const handleMortgageConfirm = useCallback(() => {
+    if (!player || !mortgageProperty) return;
+
+    const result = buyPropertyWithMortgage(player, mortgageProperty);
+    if (result.success) {
+      setPlayer(result.player);
+      setMarketProperties(prev => prev.filter(p => p.id !== mortgageProperty.id));
+      
+      // Обновляем миссии после покупки
+      const updatedMissions = updateMissions(missions, result.player);
+      setMissions(updatedMissions);
+      
+      // Добавляем событие
+      setEvents(prev => [...prev, {
+        id: `buy-mortgage-${Date.now()}`,
+        month: player.currentMonth,
+        message: result.message,
+        type: 'success'
+      }]);
+
+      // Показываем уведомление
+      setNotification({
+        id: `notif-buy-mortgage-${Date.now()}`,
+        message: `🏠 ${result.message}`,
+        type: 'success',
+        timestamp: Date.now()
+      });
+    } else {
+      setEvents(prev => [...prev, {
+        id: `error-${Date.now()}`,
+        month: player.currentMonth,
+        message: result.message,
+        type: 'error'
+      }]);
+
+      setNotification({
+        id: `notif-error-${Date.now()}`,
+        message: `❌ ${result.message}`,
+        type: 'error',
+        timestamp: Date.now()
+      });
+    }
+    
+    setIsMortgageModalOpen(false);
+    setMortgageProperty(null);
+  }, [player, mortgageProperty, missions]);
+
   const handleNegotiationConfirm = useCallback((price: number) => {
     if (!player || !negotiationProperty) return;
 
-    const negotiation = negotiatePurchase(negotiationProperty, price, player.difficulty);
+    const negotiation = negotiatePurchase(negotiationProperty, price, DEFAULT_DIFFICULTY);
     
     if (negotiation.success) {
       // Покупаем по согласованной цене
@@ -253,6 +343,14 @@ function App() {
           message: `${negotiation.message}. ${result.message}`,
           type: 'success'
         }]);
+
+        // Показываем уведомление
+        setNotification({
+          id: `notif-buy-${Date.now()}`,
+          message: `🏠 ${result.message}`,
+          type: 'success',
+          timestamp: Date.now()
+        });
       }
     } else {
       setEvents(prev => [...prev, {
@@ -267,33 +365,6 @@ function App() {
     setNegotiationProperty(null);
   }, [player, negotiationProperty, missions]);
 
-  const handleBuyWithMortgage = useCallback((property: Property) => {
-    if (!player) return;
-
-    const result = buyPropertyWithMortgage(player, property);
-    if (result.success) {
-      setPlayer(result.player);
-      setMarketProperties(prev => prev.filter(p => p.id !== property.id));
-      
-      // Обновляем миссии после покупки
-      const updatedMissions = updateMissions(missions, result.player);
-      setMissions(updatedMissions);
-      
-      setEvents(prev => [...prev, {
-        id: `buy-mortgage-${Date.now()}`,
-        month: player.currentMonth,
-        message: result.message,
-        type: 'success'
-      }]);
-    } else {
-      setEvents(prev => [...prev, {
-        id: `error-${Date.now()}`,
-        month: player.currentMonth,
-        message: result.message,
-        type: 'error'
-      }]);
-    }
-  }, [player, missions]);
 
   const handlePropertyClick = useCallback((property: Property) => {
     setSelectedProperty(property);
@@ -350,6 +421,14 @@ function App() {
       message: `✅ ${selectedProperty.name} выставлен на продажу за ${formatMoney(price)}`,
       type: 'success'
     }]);
+
+    // Показываем уведомление
+    setNotification({
+      id: `notif-flip-${Date.now()}`,
+      message: `💰 ${selectedProperty.name} выставлен на продажу`,
+      type: 'success',
+      timestamp: Date.now()
+    });
   }, [player, selectedProperty]);
 
   const handleRenovation = useCallback((type: "косметика" | "капремонт") => {
@@ -394,6 +473,14 @@ function App() {
         message: `${successMessage}. ${result.message}`,
         type: 'success'
       }]);
+
+      // Показываем уведомление
+      setNotification({
+        id: `notif-renovation-${Date.now()}`,
+        message: successMessage,
+        type: 'success',
+        timestamp: Date.now()
+      });
     } else {
       // Показываем заметное уведомление об ошибке
       setToast({
@@ -441,9 +528,9 @@ function App() {
   }, [player, selectedProperty]);
 
 
-  // Показываем селектор сложности, если игра не начата
-  if (!difficulty || !player || !market) {
-    return <DifficultySelector onSelect={handleDifficultySelect} />;
+  // Игра всегда инициализирована
+  if (!player || !market) {
+    return null; // Или можно показать загрузку
   }
 
   // Игра бессрочная, экран окончания игры убран
@@ -475,7 +562,7 @@ function App() {
             properties={marketProperties}
             playerCash={player.cash}
             onBuyWithCash={handleBuyWithCash}
-            onBuyWithMortgage={handleBuyWithMortgage}
+            onBuyWithMortgage={handleBuyWithMortgageClick}
             onNegotiate={(property) => {
               setNegotiationProperty(property);
               setIsNegotiationOpen(true);
@@ -630,6 +717,31 @@ function App() {
           }
         }}
         playerCash={player?.cash || 0}
+      />
+
+      {/* Mortgage Modal */}
+      {isMortgageModalOpen && mortgageProperty && (
+        <MortgageModal
+          isOpen={isMortgageModalOpen}
+          property={mortgageProperty}
+          playerCash={player.cash}
+          difficulty={DEFAULT_DIFFICULTY}
+          onConfirm={handleMortgageConfirm}
+          onClose={() => {
+            setIsMortgageModalOpen(false);
+            setMortgageProperty(null);
+          }}
+        />
+      )}
+
+      {/* Push Notification */}
+      <Notification
+        notification={notification}
+        onClose={() => setNotification(null)}
+        onClick={() => {
+          setCurrentScreen('events');
+          setNotification(null);
+        }}
       />
 
       {/* Toast Notification */}

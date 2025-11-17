@@ -64,6 +64,12 @@ export function processMonth(
       const monthsLeft = prop.renovationMonthsLeft - 1;
       if (monthsLeft === 0) {
         // Ремонт завершён
+        newEvents.push({
+          id: `renovation-complete-${Date.now()}-${prop.id}`,
+          month: newPlayer.currentMonth,
+          message: `🔨 Ремонт завершён на объекте ${prop.name}`,
+          type: "success"
+        });
         return {
           ...prop,
           isUnderRenovation: false,
@@ -159,8 +165,10 @@ export function processMonth(
   });
 
   // 7. Обрабатываем кредиты
+  let totalLoanPayments = 0;
   newPlayer.loans = newPlayer.loans.map(loan => {
     newPlayer.cash -= loan.monthlyPayment;
+    totalLoanPayments += loan.monthlyPayment;
     
     // Уменьшаем остаток по кредиту
     const interest = loan.remainingPrincipal * (loan.interestRate / 100 / 12);
@@ -174,7 +182,28 @@ export function processMonth(
     };
   });
 
+  // Логируем ежемесячные платежи
+  if (totalLoanPayments > 0) {
+    newEvents.push({
+      id: `loan-payment-${Date.now()}`,
+      month: newPlayer.currentMonth,
+      message: `💳 Ежемесячный платёж по кредитам: -${formatMoney(totalLoanPayments)}`,
+      type: "info"
+    });
+  }
+
   // Удаляем погашенные кредиты
+  const paidOffLoans = newPlayer.loans.filter(loan => loan.remainingPrincipal <= 0);
+  if (paidOffLoans.length > 0) {
+    paidOffLoans.forEach(loan => {
+      newEvents.push({
+        id: `loan-paid-${Date.now()}-${loan.id}`,
+        month: newPlayer.currentMonth,
+        message: `✅ Кредит погашен!`,
+        type: "success"
+      });
+    });
+  }
   newPlayer.loans = newPlayer.loans.filter(loan => loan.remainingPrincipal > 0);
 
   // 8. Проверяем банкротство

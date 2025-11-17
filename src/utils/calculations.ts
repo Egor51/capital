@@ -61,6 +61,59 @@ export function calculateRentIncome(
 }
 
 /**
+ * Рассчитывает месячные расходы игрока
+ * (расходы на содержание всех объектов + платежи по кредитам)
+ */
+export function calculateMonthlyExpenses(
+  properties: Property[],
+  loans: Loan[]
+): number {
+  // Расходы на содержание всех объектов
+  const maintenanceExpenses = properties.reduce(
+    (sum, prop) => sum + prop.monthlyExpenses,
+    0
+  );
+
+  // Платежи по кредитам
+  const loanPayments = loans.reduce(
+    (sum, loan) => sum + loan.monthlyPayment,
+    0
+  );
+
+  return Math.round(maintenanceExpenses + loanPayments);
+}
+
+/**
+ * Рассчитывает ожидаемый месячный доход игрока
+ * (аренда - расходы на содержание - платежи по кредитам)
+ */
+export function calculateMonthlyIncome(
+  properties: Property[],
+  loans: Loan[],
+  market: MarketState
+): number {
+  // Доход от аренды (ожидаемый, без учета случайной вакансии)
+  let rentIncome = 0;
+  properties.forEach(prop => {
+    if (prop.strategy === "rent" && !prop.isUnderRenovation) {
+      let rent = prop.baseMonthlyRent * market.rentIndex;
+      market.activeEvents.forEach(event => {
+        rent *= (1 + event.rentImpactPercent / 100);
+      });
+      // Учитываем вероятность вакансии (ожидаемое значение)
+      rent *= (1 - market.vacancyRate / 100);
+      rentIncome += rent;
+    }
+  });
+
+  // Используем функцию расчета расходов
+  const expenses = calculateMonthlyExpenses(properties, loans);
+
+  // Чистый месячный доход
+  return Math.round(rentIncome - expenses);
+}
+
+/**
  * Обновляет стоимость объекта с учётом рыночной фазы
  */
 export function updatePropertyValue(
