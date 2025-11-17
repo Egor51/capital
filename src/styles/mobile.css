@@ -451,12 +451,17 @@
   position: relative;
   overflow: hidden;
   padding: 0;
+  transition: all var(--transition-medium);
 }
 
 .market-property-card:hover {
   border-color: var(--neon-cyan);
   box-shadow: var(--glow-cyan);
-  transform: translateY(-2px);
+}
+
+.market-property-card--expanded {
+  border-color: var(--neon-cyan);
+  box-shadow: var(--glow-cyan);
 }
 
 .market-property-card__image {
@@ -468,6 +473,12 @@
   display: flex;
   align-items: flex-end;
   padding: var(--spacing-md);
+  cursor: pointer;
+  transition: height var(--transition-medium);
+}
+
+.market-property-card--expanded .market-property-card__image {
+  height: 180px;
 }
 
 .market-property-card__image-overlay {
@@ -485,6 +496,28 @@
   padding: var(--spacing-xs) var(--spacing-sm);
 }
 
+.market-property-card__expand-icon {
+  position: absolute;
+  bottom: var(--spacing-sm);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--font-size-lg);
+  color: var(--neon-cyan);
+  background: rgba(0, 0, 0, 0.6);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--neon-cyan);
+  transition: transform var(--transition-fast);
+}
+
+.market-property-card--expanded .market-property-card__expand-icon {
+  transform: translateX(-50%) rotate(180deg);
+}
+
 .market-property-card__content {
   padding: var(--spacing-md);
 }
@@ -495,6 +528,8 @@
   align-items: flex-start;
   margin-bottom: var(--spacing-sm);
   gap: var(--spacing-sm);
+  cursor: pointer;
+  user-select: none;
 }
 
 .market-property-card__title {
@@ -591,6 +626,24 @@
 .market-property-card__metric-value--roi {
   color: var(--neon-cyan);
   text-shadow: 0 0 3px rgba(0, 255, 255, 0.42);
+}
+
+.market-property-card__expandable {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height var(--transition-medium), opacity var(--transition-medium), padding var(--transition-medium);
+  padding-top: 0;
+}
+
+.market-property-card__expandable--visible {
+  max-height: 1000px;
+  opacity: 1;
+  padding-top: var(--spacing-md);
+}
+
+.market-property-card__actions {
+  margin-top: var(--spacing-md);
 }
 
 .market-property-card__tags {

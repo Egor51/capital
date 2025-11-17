@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Property } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -20,6 +20,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({
   onBuyWithMortgage,
   onNegotiate: _onNegotiate
 }) => {
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+
   if (properties.length === 0) {
     return (
       <div className="market-screen">
@@ -41,6 +43,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({
             key={property.id}
             property={property}
             playerCash={playerCash}
+            isExpanded={expandedCardId === property.id}
+            onToggle={() => setExpandedCardId(expandedCardId === property.id ? null : property.id)}
             onBuyWithCash={() => onBuyWithCash(property)}
             onBuyWithMortgage={() => onBuyWithMortgage(property)}
           />
@@ -53,6 +57,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({
 interface MarketPropertyCardProps {
   property: Property;
   playerCash: number;
+  isExpanded: boolean;
+  onToggle: () => void;
   onBuyWithCash: () => void;
   onBuyWithMortgage: () => void;
   onNegotiate?: () => void;
@@ -61,6 +67,8 @@ interface MarketPropertyCardProps {
 const MarketPropertyCard: React.FC<MarketPropertyCardProps> = ({
   property,
   playerCash,
+  isExpanded,
+  onToggle,
   onBuyWithCash,
   onBuyWithMortgage,
   onNegotiate
@@ -109,22 +117,26 @@ const MarketPropertyCard: React.FC<MarketPropertyCardProps> = ({
   const roi = ((monthlyProfit * 12) / property.purchasePrice * 100).toFixed(1);
 
   return (
-    <Card className="market-property-card">
+    <Card className={`market-property-card ${isExpanded ? 'market-property-card--expanded' : ''}`}>
       {/* Изображение */}
       <div 
         className="market-property-card__image"
         style={{ background: getPropertyImage(property.type, property.condition) }}
+        onClick={onToggle}
       >
         <div className="market-property-card__image-overlay">
           <Tag variant={getConditionVariant(property.condition)} className="market-property-card__condition-badge">
             {property.condition}
           </Tag>
         </div>
+        <div className="market-property-card__expand-icon">
+          {isExpanded ? '▲' : '▼'}
+        </div>
       </div>
 
       {/* Контент */}
       <div className="market-property-card__content">
-        <div className="market-property-card__header">
+        <div className="market-property-card__header" onClick={onToggle}>
           <h3 className="market-property-card__title">{property.name}</h3>
           <div className="market-property-card__price">{formatMoney(property.purchasePrice)}</div>
         </div>
@@ -150,57 +162,66 @@ const MarketPropertyCard: React.FC<MarketPropertyCardProps> = ({
           </div>
         </div>
 
-        {/* Финансовые показатели */}
-        <div className="market-property-card__metrics">
-          <div className="market-property-card__metric">
-            <div className="market-property-card__metric-label">Аренда</div>
-            <div className="market-property-card__metric-value market-property-card__metric-value--positive">
-              +{formatMoney(property.baseMonthlyRent)}/мес
+        {/* Раскрываемая часть */}
+        <div className={`market-property-card__expandable ${isExpanded ? 'market-property-card__expandable--visible' : ''}`}>
+          {/* Финансовые показатели */}
+          <div className="market-property-card__metrics">
+            <div className="market-property-card__metric">
+              <div className="market-property-card__metric-label">Аренда</div>
+              <div className="market-property-card__metric-value market-property-card__metric-value--positive">
+                +{formatMoney(property.baseMonthlyRent)}/мес
+              </div>
+            </div>
+            <div className="market-property-card__metric">
+              <div className="market-property-card__metric-label">Расходы</div>
+              <div className="market-property-card__metric-value market-property-card__metric-value--negative">
+                -{formatMoney(property.monthlyExpenses)}/мес
+              </div>
+            </div>
+            <div className="market-property-card__metric">
+              <div className="market-property-card__metric-label">Доходность</div>
+              <div className="market-property-card__metric-value market-property-card__metric-value--roi">
+                {roi}% годовых
+              </div>
             </div>
           </div>
-          <div className="market-property-card__metric">
-            <div className="market-property-card__metric-label">Расходы</div>
-            <div className="market-property-card__metric-value market-property-card__metric-value--negative">
-              -{formatMoney(property.monthlyExpenses)}/мес
-            </div>
-          </div>
-          <div className="market-property-card__metric">
-            <div className="market-property-card__metric-label">Доходность</div>
-            <div className="market-property-card__metric-value market-property-card__metric-value--roi">
-              {roi}% годовых
-            </div>
-          </div>
-        </div>
 
-        {/* Кнопки действий */}
-        <div className="market-property-card__actions">
-          {onNegotiate && (
+          {/* Кнопки действий */}
+          <div className="market-property-card__actions">
+            {onNegotiate && (
+              <Button
+                variant="ghost"
+                fullWidth
+                onClick={() => {
+                  onNegotiate();
+                }}
+                className="mb-sm"
+              >
+                💬 Торговаться
+              </Button>
+            )}
             <Button
-              variant="ghost"
+              variant="primary"
               fullWidth
-              onClick={onNegotiate}
+              onClick={() => {
+                onBuyWithCash();
+              }}
+              disabled={!canAffordCash}
               className="mb-sm"
             >
-              💬 Торговаться
+              {canAffordCash ? '💰 Купить за наличные' : '❌ Недостаточно средств'}
             </Button>
-          )}
-          <Button
-            variant="primary"
-            fullWidth
-            onClick={onBuyWithCash}
-            disabled={!canAffordCash}
-            className="mb-sm"
-          >
-            {canAffordCash ? '💰 Купить за наличные' : '❌ Недостаточно средств'}
-          </Button>
-          <Button
-            variant="secondary"
-            fullWidth
-            onClick={onBuyWithMortgage}
-            disabled={!canAffordMortgage}
-          >
-            {canAffordMortgage ? '🏦 Купить в ипотеку (20% взнос)' : '❌ Недостаточно для взноса'}
-          </Button>
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={() => {
+                onBuyWithMortgage();
+              }}
+              disabled={!canAffordMortgage}
+            >
+              {canAffordMortgage ? '🏦 Купить в ипотеку' : '❌ Недостаточно для взноса'}
+            </Button>
+          </div>
         </div>
       </div>
     </Card>
