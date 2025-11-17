@@ -15,7 +15,6 @@ import { Dashboard } from './components/mobile/Dashboard';
 import { MarketScreen } from './components/mobile/MarketScreen';
 import { EventsScreen } from './components/mobile/EventsScreen';
 import { MissionsPanel } from './components/mobile/MissionsPanel';
-import { PropertyDetailModal } from './components/mobile/PropertyDetailModal';
 import { BottomNavigation } from './components/mobile/BottomNavigation';
 import { initialMissions, achievements } from './data/missions';
 import { updateMissions, checkAchievements, calculateLevel } from './utils/missions';
@@ -75,7 +74,6 @@ function App() {
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
   const [missions, setMissions] = useState(initialMissions);
   const [playerAchievements, setPlayerAchievements] = useState(achievements);
   
@@ -366,28 +364,22 @@ function App() {
   }, [player, negotiationProperty, missions]);
 
 
-  const handlePropertyClick = useCallback((property: Property) => {
+
+  const handleStrategyChange = useCallback((property: Property, strategy: PropertyStrategy) => {
+    if (!player) return;
+    
+    // Устанавливаем выбранное свойство для обработки
     setSelectedProperty(property);
-    setIsPropertyModalOpen(true);
-  }, []);
-
-  const handlePropertyModalClose = useCallback(() => {
-    setIsPropertyModalOpen(false);
-    setSelectedProperty(null);
-  }, []);
-
-  const handleStrategyChange = useCallback((strategy: PropertyStrategy) => {
-    if (!player || !selectedProperty) return;
 
     // Если выбираем flip, открываем модалку для установки цены
     if (strategy === 'flip') {
       setIsFlipPriceOpen(true);
     } else {
-      const newPlayer = changePropertyStrategy(player, selectedProperty, strategy);
+      const newPlayer = changePropertyStrategy(player, property, strategy);
       setPlayer(newPlayer);
       
       // Обновляем выбранное свойство из нового списка
-      const updatedProperty = newPlayer.properties.find(p => p.id === selectedProperty.id);
+      const updatedProperty = newPlayer.properties.find(p => p.id === property.id);
       if (updatedProperty) {
         setSelectedProperty(updatedProperty);
       }
@@ -396,11 +388,11 @@ function App() {
       setEvents(prev => [...prev, {
         id: `strategy-${Date.now()}`,
         month: player.currentMonth,
-        message: `Стратегия для ${selectedProperty.name} изменена на "${strategy === 'hold' ? 'Держать' : strategy === 'rent' ? 'Сдавать в аренду' : 'Перепродавать'}"`,
+        message: `Стратегия для ${property.name} изменена на "${strategy === 'hold' ? 'Держать' : strategy === 'rent' ? 'Сдавать в аренду' : 'Перепродавать'}"`,
         type: 'success'
       }]);
     }
-  }, [player, selectedProperty]);
+  }, [player]);
 
   const handleFlipPriceConfirm = useCallback((price: number) => {
     if (!player || !selectedProperty) return;
@@ -431,15 +423,18 @@ function App() {
     });
   }, [player, selectedProperty]);
 
-  const handleRenovation = useCallback((type: "косметика" | "капремонт") => {
-    if (!player || !selectedProperty) return;
+  const handleRenovation = useCallback((property: Property, type: "косметика" | "капремонт") => {
+    if (!player) return;
+    
+    // Устанавливаем выбранное свойство для обработки
+    setSelectedProperty(property);
 
-    const result = startRenovation(player, selectedProperty, type);
+    const result = startRenovation(player, property, type);
     if (result.success) {
       setPlayer(result.player);
       
       // Обновляем выбранное свойство из нового списка
-      const updatedProperty = result.player.properties.find(p => p.id === selectedProperty.id);
+      const updatedProperty = result.player.properties.find(p => p.id === property.id);
       if (updatedProperty) {
         setSelectedProperty(updatedProperty);
       }
@@ -458,7 +453,7 @@ function App() {
       setPlayerAchievements(updatedAchievements);
       
       const renovationName = type === 'косметика' ? 'Косметический ремонт' : 'Капитальный ремонт';
-      const successMessage = `🔨 ${renovationName} начат на ${selectedProperty.name}`;
+      const successMessage = `🔨 ${renovationName} начат на ${property.name}`;
       
       // Показываем toast уведомление
       setToast({
@@ -496,17 +491,20 @@ function App() {
         type: 'error'
       }]);
     }
-  }, [player, selectedProperty, missions, playerAchievements]);
+  }, [player, missions, playerAchievements]);
 
-  const handleTakeLoan = useCallback(() => {
-    if (!player || !selectedProperty) return;
+  const handleTakeLoan = useCallback((property: Property) => {
+    if (!player) return;
+    
+    // Устанавливаем выбранное свойство для обработки
+    setSelectedProperty(property);
 
-    const result = takeLoanAgainstProperty(player, selectedProperty);
+    const result = takeLoanAgainstProperty(player, property);
     if (result.success) {
       setPlayer(result.player);
       
       // Обновляем выбранное свойство из нового списка
-      const updatedProperty = result.player.properties.find(p => p.id === selectedProperty.id);
+      const updatedProperty = result.player.properties.find(p => p.id === property.id);
       if (updatedProperty) {
         setSelectedProperty(updatedProperty);
       }
@@ -535,10 +533,6 @@ function App() {
 
   // Игра бессрочная, экран окончания игры убран
 
-  // Find loan for selected property
-  const selectedPropertyLoan = selectedProperty?.mortgageId
-    ? player.loans.find(l => l.id === selectedProperty.mortgageId)
-    : undefined;
 
   return (
     <div className="app">
@@ -554,7 +548,10 @@ function App() {
             player={player}
             market={market}
             properties={player.properties}
-            onPropertyClick={handlePropertyClick}
+            onStrategyChange={handleStrategyChange}
+            onRenovation={handleRenovation}
+            onTakeLoan={handleTakeLoan}
+            loans={player.loans}
           />
         )}
         {currentScreen === 'market' && (
@@ -617,17 +614,6 @@ function App() {
       <BottomNavigation
         currentScreen={currentScreen}
         onScreenChange={setCurrentScreen}
-      />
-
-      {/* Property Detail Modal */}
-      <PropertyDetailModal
-        property={selectedProperty}
-        isOpen={isPropertyModalOpen}
-        onClose={handlePropertyModalClose}
-        onStrategyChange={handleStrategyChange}
-        onRenovation={handleRenovation}
-        onTakeLoan={handleTakeLoan}
-        loan={selectedPropertyLoan}
       />
 
       {/* Negotiation Modal */}

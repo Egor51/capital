@@ -117,111 +117,101 @@ const MarketPropertyCard: React.FC<MarketPropertyCardProps> = ({
   const roi = ((monthlyProfit * 12) / property.purchasePrice * 100).toFixed(1);
 
   return (
-    <Card className={`market-property-card ${isExpanded ? 'market-property-card--expanded' : ''}`}>
-      {/* Изображение */}
-      <div 
-        className="market-property-card__image"
-        style={{ background: getPropertyImage(property.type, property.condition) }}
-        onClick={onToggle}
-      >
-        <div className="market-property-card__image-overlay">
-          <Tag variant={getConditionVariant(property.condition)} className="market-property-card__condition-badge">
-            {property.condition}
-          </Tag>
+    <Card 
+      className={`market-property-card ${isExpanded ? 'market-property-card--expanded' : ''}`}
+      onClick={onToggle}
+    >
+      {/* Компактный заголовок */}
+      <div className="market-property-card__compact-header">
+        <div className="market-property-card__compact-info">
+          <h3 className="market-property-card__title">{property.name}</h3>
+          <div className="market-property-card__compact-details">
+            <span className="market-property-card__compact-location">📍 {property.district}</span>
+            <span className="market-property-card__compact-features">
+              {details.area} м² • {details.floor} эт • {property.type}
+            </span>
+          </div>
         </div>
-        <div className="market-property-card__expand-icon">
-          {isExpanded ? '▲' : '▼'}
+        <div className="market-property-card__compact-price">
+          <div className="market-property-card__price">{formatMoney(property.purchasePrice)}</div>
+          <div className="market-property-card__expand-icon">
+            {isExpanded ? '▲' : '▼'}
+          </div>
         </div>
       </div>
 
-      {/* Контент */}
-      <div className="market-property-card__content">
-        <div className="market-property-card__header" onClick={onToggle}>
-          <h3 className="market-property-card__title">{property.name}</h3>
-          <div className="market-property-card__price">{formatMoney(property.purchasePrice)}</div>
-        </div>
-
-        <div className="market-property-card__location">
-          <span className="market-property-card__location-icon">📍</span>
-          <span>{property.district}</span>
-        </div>
-
-        {/* Характеристики */}
-        <div className="market-property-card__features">
-          <div className="market-property-card__feature">
-            <span className="market-property-card__feature-icon">📐</span>
-            <span>{details.area} м²</span>
-          </div>
-          <div className="market-property-card__feature">
-            <span className="market-property-card__feature-icon">🏢</span>
-            <span>{details.floor} этаж</span>
-          </div>
-          <div className="market-property-card__feature">
-            <span className="market-property-card__feature-icon">🏠</span>
-            <span>{property.type}</span>
+      {/* Раскрываемая часть */}
+      <div className={`market-property-card__expandable ${isExpanded ? 'market-property-card__expandable--visible' : ''}`}>
+        {/* Изображение */}
+        <div 
+          className="market-property-card__image"
+          style={{ background: getPropertyImage(property.type, property.condition) }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="market-property-card__image-overlay">
+            <Tag variant={getConditionVariant(property.condition)} className="market-property-card__condition-badge">
+              {property.condition}
+            </Tag>
           </div>
         </div>
 
-        {/* Раскрываемая часть */}
-        <div className={`market-property-card__expandable ${isExpanded ? 'market-property-card__expandable--visible' : ''}`}>
-          {/* Финансовые показатели */}
-          <div className="market-property-card__metrics">
-            <div className="market-property-card__metric">
-              <div className="market-property-card__metric-label">Аренда</div>
-              <div className="market-property-card__metric-value market-property-card__metric-value--positive">
-                +{formatMoney(property.baseMonthlyRent)}/мес
-              </div>
-            </div>
-            <div className="market-property-card__metric">
-              <div className="market-property-card__metric-label">Расходы</div>
-              <div className="market-property-card__metric-value market-property-card__metric-value--negative">
-                -{formatMoney(property.monthlyExpenses)}/мес
-              </div>
-            </div>
-            <div className="market-property-card__metric">
-              <div className="market-property-card__metric-label">Доходность</div>
-              <div className="market-property-card__metric-value market-property-card__metric-value--roi">
-                {roi}% годовых
-              </div>
+        {/* Финансовые показатели */}
+        <div className="market-property-card__metrics">
+          <div className="market-property-card__metric">
+            <div className="market-property-card__metric-label">Аренда</div>
+            <div className="market-property-card__metric-value market-property-card__metric-value--positive">
+              +{formatMoney(property.baseMonthlyRent)}/мес
             </div>
           </div>
+          <div className="market-property-card__metric">
+            <div className="market-property-card__metric-label">Расходы</div>
+            <div className="market-property-card__metric-value market-property-card__metric-value--negative">
+              -{formatMoney(property.monthlyExpenses)}/мес
+            </div>
+          </div>
+          <div className="market-property-card__metric">
+            <div className="market-property-card__metric-label">Доходность</div>
+            <div className="market-property-card__metric-value market-property-card__metric-value--roi">
+              {roi}% годовых
+            </div>
+          </div>
+        </div>
 
-          {/* Кнопки действий */}
-          <div className="market-property-card__actions">
-            {onNegotiate && (
-              <Button
-                variant="ghost"
-                fullWidth
-                onClick={() => {
-                  onNegotiate();
-                }}
-                className="mb-sm"
-              >
-                💬 Торговаться
-              </Button>
-            )}
+        {/* Кнопки действий */}
+        <div className="market-property-card__actions" onClick={(e) => e.stopPropagation()}>
+          {onNegotiate && (
             <Button
-              variant="primary"
+              variant="ghost"
               fullWidth
               onClick={() => {
-                onBuyWithCash();
+                onNegotiate();
               }}
-              disabled={!canAffordCash}
               className="mb-sm"
             >
-              {canAffordCash ? '💰 Купить за наличные' : '❌ Недостаточно средств'}
+              💬 Торговаться
             </Button>
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={() => {
-                onBuyWithMortgage();
-              }}
-              disabled={!canAffordMortgage}
-            >
-              {canAffordMortgage ? '🏦 Купить в ипотеку' : '❌ Недостаточно для взноса'}
-            </Button>
-          </div>
+          )}
+          <Button
+            variant="primary"
+            fullWidth
+            onClick={() => {
+              onBuyWithCash();
+            }}
+            disabled={!canAffordCash}
+            className="mb-sm"
+          >
+            {canAffordCash ? '💰 Купить за наличные' : '❌ Недостаточно средств'}
+          </Button>
+          <Button
+            variant="secondary"
+            fullWidth
+            onClick={() => {
+              onBuyWithMortgage();
+            }}
+            disabled={!canAffordMortgage}
+          >
+            {canAffordMortgage ? '🏦 Купить в ипотеку' : '❌ Недостаточно для взноса'}
+          </Button>
         </div>
       </div>
     </Card>

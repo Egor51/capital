@@ -1,7 +1,8 @@
-import React from 'react';
-import { Player, MarketState, Property } from '../../types';
+import React, { useState } from 'react';
+import { Player, MarketState, Property, PropertyStrategy, Loan } from '../../types';
 import { Card } from '../ui/Card';
 import { Tag } from '../ui/Tag';
+import { Button } from '../ui/Button';
 import { formatMoney } from '../../utils/gameLogic';
 import { calculateMonthlyIncome, calculateMonthlyExpenses } from '../../utils/calculations';
 
@@ -9,17 +10,27 @@ interface DashboardProps {
   player: Player;
   market: MarketState;
   properties: Property[];
-  onPropertyClick: (property: Property) => void;
+  loans: Loan[];
+  onStrategyChange?: (property: Property, strategy: PropertyStrategy) => void;
+  onRenovation?: (property: Property, type: "косметика" | "капремонт") => void;
+  onTakeLoan?: (property: Property) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
   player,
   market,
   properties,
-  onPropertyClick
+  loans,
+  onStrategyChange,
+  onRenovation,
+  onTakeLoan
 }) => {
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const monthlyIncome = calculateMonthlyIncome(player.properties, player.loans, market);
   const monthlyExpenses = calculateMonthlyExpenses(player.properties, player.loans);
+  const totalDebt = player.loans.reduce((sum, loan) => sum + loan.remainingPrincipal, 0);
+  const totalPropertyValue = properties.reduce((sum, prop) => sum + prop.currentValue, 0);
+  const netCashFlow = monthlyIncome;
 
   // Генерация аватара (инициалы)
   const getAvatar = (name: string): string => {
@@ -61,53 +72,59 @@ export const Dashboard: React.FC<DashboardProps> = ({
       
       </Card>
 
-      {/* Financial Status Card */}
-      <Card className="dashboard__finance-card">
-        <div className="dashboard__finance-header">
-          <h2 className="dashboard__section-title">💰 Финансовое состояние</h2>
-          <div className="dashboard__finance-status-indicator"></div>
+      {/* Financial Status Card - Crypto Exchange Style */}
+      <Card className="dashboard__finance-card dashboard__finance-card--crypto">
+        <div className="dashboard__finance-header-crypto">
+          <h2 className="dashboard__section-title">ПОРТФЕЛЬ</h2>
+          <div className={`dashboard__finance-status-badge ${netCashFlow >= 0 ? 'dashboard__finance-status-badge--positive' : 'dashboard__finance-status-badge--negative'}`}>
+            {netCashFlow >= 0 ? '▲' : '▼'}
+          </div>
         </div>
         
-        {/* Основные метрики */}
-        <div className="dashboard__finance-main-grid">
-          <div className="dashboard__finance-stat dashboard__finance-stat--capital">
-            <div className="dashboard__finance-stat-icon">💎</div>
-            <div className="dashboard__finance-stat-content">
-              <div className="dashboard__finance-stat-label">КАПИТАЛ</div>
-              <div className="dashboard__finance-stat-value">{formatMoney(player.netWorth)}</div>
-            </div>
-            <div className="dashboard__finance-stat-glow"></div>
-          </div>
-          
-          <div className={`dashboard__finance-stat ${player.cash < 0 ? 'dashboard__finance-stat--danger' : 'dashboard__finance-stat--cash'}`}>
-            <div className="dashboard__finance-stat-icon">{player.cash < 0 ? '⚠️' : '💵'}</div>
-            <div className="dashboard__finance-stat-content">
-              <div className="dashboard__finance-stat-label">НАЛИЧНЫЕ</div>
-              <div className="dashboard__finance-stat-value">{formatMoney(player.cash)}</div>
-            </div>
-            <div className="dashboard__finance-stat-glow"></div>
+        {/* Главная метрика - как цена на бирже */}
+        <div className="dashboard__finance-main-price">
+          <div className="dashboard__finance-price-label">Общий баланс</div>
+          <div className={`dashboard__finance-price-value ${player.netWorth >= 0 ? 'dashboard__finance-price-value--up' : 'dashboard__finance-price-value--down'}`}>
+            {formatMoney(player.netWorth)}
           </div>
         </div>
 
-        {/* Потоки денежных средств */}
-        <div className="dashboard__finance-flows">
-          <div className={`dashboard__finance-flow-card ${monthlyIncome >= 0 ? 'dashboard__finance-flow-card--income' : 'dashboard__finance-flow-card--negative'}`}>
-            <div className="dashboard__finance-flow-header">
-              <span className="dashboard__finance-flow-icon">{monthlyIncome >= 0 ? '📈' : '📉'}</span>
-              <span className="dashboard__finance-flow-label">ДОХОД</span>
-            </div>
-            <div className="dashboard__finance-flow-value">
-              {monthlyIncome >= 0 ? '+' : ''}{formatMoney(monthlyIncome)}<span className="dashboard__finance-flow-period">/мес</span>
+        {/* Таблица метрик - как на криптобирже */}
+        <div className="dashboard__finance-table">
+          <div className="dashboard__finance-row">
+            <div className="dashboard__finance-cell dashboard__finance-cell--label">Баланс</div>
+            <div className={`dashboard__finance-cell dashboard__finance-cell--value ${player.cash >= 0 ? 'dashboard__finance-cell--value-up' : 'dashboard__finance-cell--value-down'}`}>
+              {formatMoney(player.cash)}
             </div>
           </div>
           
-          <div className="dashboard__finance-flow-card dashboard__finance-flow-card--expense">
-            <div className="dashboard__finance-flow-header">
-              <span className="dashboard__finance-flow-icon">📉</span>
-              <span className="dashboard__finance-flow-label">РАСХОД</span>
+          <div className="dashboard__finance-row">
+            <div className="dashboard__finance-cell dashboard__finance-cell--label">Активы</div>
+            <div className="dashboard__finance-cell dashboard__finance-cell--value dashboard__finance-cell--value-up">
+              {formatMoney(totalPropertyValue)}
             </div>
-            <div className="dashboard__finance-flow-value">
-              {formatMoney(monthlyExpenses)}<span className="dashboard__finance-flow-period">/мес</span>
+          </div>
+          
+          <div className="dashboard__finance-row">
+            <div className="dashboard__finance-cell dashboard__finance-cell--label">Долги</div>
+            <div className={`dashboard__finance-cell dashboard__finance-cell--value ${totalDebt > 0 ? 'dashboard__finance-cell--value-down' : 'dashboard__finance-cell--value-neutral'}`}>
+              {formatMoney(totalDebt)}
+            </div>
+          </div>
+          
+          {/* <div className="dashboard__finance-row dashboard__finance-row--divider"></div> */}
+          
+          <div className="dashboard__finance-row">
+            <div className="dashboard__finance-cell dashboard__finance-cell--label">Доход/мес</div>
+            <div className={`dashboard__finance-cell dashboard__finance-cell--value ${monthlyIncome >= 0 ? 'dashboard__finance-cell--value-up' : 'dashboard__finance-cell--value-down'}`}>
+              {monthlyIncome >= 0 ? '+' : ''}{formatMoney(monthlyIncome)}
+            </div>
+          </div>
+          
+          <div className="dashboard__finance-row">
+            <div className="dashboard__finance-cell dashboard__finance-cell--label">Расход/мес</div>
+            <div className="dashboard__finance-cell dashboard__finance-cell--value dashboard__finance-cell--value-down">
+              {formatMoney(monthlyExpenses)}
             </div>
           </div>
         </div>
@@ -117,20 +134,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="dashboard__properties">
         <h2 className="dashboard__section-title mb-md">Ваши объекты ({properties.length})</h2>
         {properties.length === 0 ? (
-          <Card className='mt-4'>
+          <Card>
             <div className="text-center text-secondary">
               У вас пока нет объектов недвижимости
             </div>
           </Card>
         ) : (
           <div className="dashboard__properties-list">
-            {properties.map(property => (
-              <PropertyCard
-                key={property.id}
-                property={property}
-                onClick={() => onPropertyClick(property)}
-              />
-            ))}
+            {properties.map(property => {
+              const propertyLoan = property.mortgageId ? loans.find(l => l.id === property.mortgageId) : undefined;
+              return (
+                <PropertyCard
+                  key={property.id}
+                  property={property}
+                  loan={propertyLoan}
+                  isExpanded={expandedCardId === property.id}
+                  onToggle={() => setExpandedCardId(expandedCardId === property.id ? null : property.id)}
+                  onStrategyChange={onStrategyChange ? (strategy) => onStrategyChange(property, strategy) : undefined}
+                  onRenovation={onRenovation ? (type) => onRenovation(property, type) : undefined}
+                  onTakeLoan={onTakeLoan ? () => onTakeLoan(property) : undefined}
+                />
+              );
+            })}
           </div>
         )}
       </div>
@@ -140,10 +165,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
 interface PropertyCardProps {
   property: Property;
-  onClick: () => void;
+  loan?: Loan;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onStrategyChange?: (strategy: PropertyStrategy) => void;
+  onRenovation?: (type: "косметика" | "капремонт") => void;
+  onTakeLoan?: () => void;
 }
 
-const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick }) => {
+const PropertyCard: React.FC<PropertyCardProps> = ({ 
+  property, 
+  loan,
+  isExpanded,
+  onToggle,
+  onStrategyChange,
+  onRenovation,
+  onTakeLoan
+}) => {
   const getConditionVariant = (condition: Property['condition']) => {
     switch (condition) {
       case 'после ремонта':
@@ -169,18 +207,6 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick }) => {
     }
   };
 
-  const getStrategyIcon = (strategy: Property['strategy']) => {
-    switch (strategy) {
-      case 'hold':
-        return '📦';
-      case 'rent':
-        return '💰';
-      case 'flip':
-        return '🏷️';
-      default:
-        return '❓';
-    }
-  };
 
   // Генерируем изображение
   const getPropertyImage = (type: Property['type'], condition: Property['condition']) => {
@@ -209,76 +235,142 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick }) => {
   const profitPercent = ((profit / property.purchasePrice) * 100).toFixed(1);
 
   return (
-    <Card className="property-card" onClick={onClick}>
-      {/* Изображение */}
-      <div 
-        className="property-card__image"
-        style={{ background: getPropertyImage(property.type, property.condition) }}
-      >
-        <div className="property-card__image-overlay">
-          <Tag variant={getConditionVariant(property.condition)} className="property-card__condition-badge">
-            {property.condition}
-          </Tag>
-          {property.isUnderRenovation && (
-            <div className="property-card__renovation-badge">
-              🔨 Ремонт ({property.renovationMonthsLeft} мес.)
-            </div>
-          )}
+    <Card 
+      className={`property-card ${isExpanded ? 'property-card--expanded' : ''}`}
+      onClick={onToggle}
+    >
+      {/* Компактный заголовок */}
+      <div className="property-card__compact-header">
+        <div className="property-card__compact-info">
+          <h3 className="property-card__title">{property.name}</h3>
+          <div className="property-card__compact-details">
+            <span className="property-card__compact-location">📍 {property.district}</span>
+            <span className="property-card__compact-features">
+              {details.area} м² • {details.floor} эт • {getStrategyName(property.strategy)}
+            </span>
+          </div>
+        </div>
+        <div className="property-card__compact-price">
+          <div className="property-card__value">{formatMoney(property.currentValue)}</div>
+          <div className="property-card__expand-icon">
+            {isExpanded ? '▲' : '▼'}
+          </div>
         </div>
       </div>
 
-      {/* Контент */}
-      <div className="property-card__content">
-        <div className="property-card__header">
-          <h3 className="property-card__title">{property.name}</h3>
-          <div className="property-card__value">{formatMoney(property.currentValue)}</div>
+      {/* Компактные кнопки действий */}
+      {!property.isUnderRenovation && onRenovation && property.condition !== 'после ремонта' && (
+        <div className="property-card__compact-actions" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="secondary"
+            size="small"
+            onClick={() => onRenovation('косметика')}
+            className="property-card__compact-btn"
+            fullWidth
+          >
+            🔨 Ремонт
+          </Button>
+        </div>
+      )}
+
+      {/* Раскрываемая часть */}
+      <div className={`property-card__expandable ${isExpanded ? 'property-card__expandable--visible' : ''}`}>
+        {/* Изображение */}
+        <div 
+          className="property-card__image"
+          style={{ background: getPropertyImage(property.type, property.condition) }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="property-card__image-overlay">
+            <Tag variant={getConditionVariant(property.condition)} className="property-card__condition-badge">
+              {property.condition}
+            </Tag>
+            {property.isUnderRenovation && (
+              <div className="property-card__renovation-badge">
+                🔨 Ремонт ({property.renovationMonthsLeft} мес.)
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="property-card__location">
-          <span className="property-card__location-icon">📍</span>
-          <span>{property.district}</span>
-        </div>
+        {/* Детали */}
+        <div className="property-card__details">
+          <div className="property-card__features">
+            <div className="property-card__feature">
+              <span className="property-card__feature-icon">📐</span>
+              <span>{details.area} м²</span>
+            </div>
+            <div className="property-card__feature">
+              <span className="property-card__feature-icon">🏢</span>
+              <span>{details.floor} этаж</span>
+            </div>
+            <div className="property-card__feature">
+              <span className="property-card__feature-icon">🏠</span>
+              <span>{property.type}</span>
+            </div>
+          </div>
 
-        {/* Характеристики */}
-        <div className="property-card__features">
-          <div className="property-card__feature">
-            <span className="property-card__feature-icon">📐</span>
-            <span>{details.area} м²</span>
-          </div>
-          <div className="property-card__feature">
-            <span className="property-card__feature-icon">🏢</span>
-            <span>{details.floor} этаж</span>
-          </div>
-          <div className="property-card__feature">
-            <span className="property-card__feature-icon">🏠</span>
-            <span>{property.type}</span>
-          </div>
-        </div>
-
-        {/* Стратегия и доход */}
-        <div className="property-card__strategy">
-          <div className="property-card__strategy-item">
-            <span className="property-card__strategy-icon">{getStrategyIcon(property.strategy)}</span>
-            <span>{getStrategyName(property.strategy)}</span>
-          </div>
           {property.strategy === 'rent' && (
-            <div className="property-card__strategy-item property-card__strategy-item--income">
-              <span className="property-card__strategy-icon">💰</span>
-              <span>+{formatMoney(property.baseMonthlyRent)}/мес</span>
+            <div className="property-card__income-info">
+              <span className="property-card__income-label">Доход:</span>
+              <span className="property-card__income-value">+{formatMoney(property.baseMonthlyRent)}/мес</span>
             </div>
           )}
-          {property.strategy === 'flip' && property.isForSale && (
-            <div className="property-card__strategy-item property-card__strategy-item--sale">
-              <span className="property-card__strategy-icon">🏷️</span>
-              <span>Продажа: {formatMoney(property.salePrice || property.currentValue)}</span>
+
+          {profit !== 0 && (
+            <div className={`property-card__profit ${profit > 0 ? 'property-card__profit--positive' : 'property-card__profit--negative'}`}>
+              {profit > 0 ? '📈' : '📉'} {profit > 0 ? '+' : ''}{formatMoney(profit)} ({profitPercent}%)
+            </div>
+          )}
+
+          {loan && (
+            <div className="property-card__loan-info">
+              <span className="property-card__loan-label">Долг:</span>
+              <span className="property-card__loan-value">{formatMoney(loan.remainingPrincipal)}</span>
             </div>
           )}
         </div>
 
-        {/* Прибыль/убыток */}
-        {profit !== 0 && (
-          <div className={`property-card__profit ${profit > 0 ? 'property-card__profit--positive' : 'property-card__profit--negative'}`}>
-            {profit > 0 ? '📈' : '📉'} {profit > 0 ? '+' : ''}{formatMoney(profit)} ({profitPercent}%)
+        {/* Действия */}
+        {!property.isUnderRenovation && (
+          <div className="property-card__actions" onClick={(e) => e.stopPropagation()}>
+            {/* Стратегии */}
+            {onStrategyChange && (
+              <div className="property-card__strategy-buttons">
+                <div className="property-card__strategy-label">Стратегия:</div>
+                <div className="property-card__strategy-buttons-group">
+                  <Button
+                    variant={property.strategy === 'rent' ? 'primary' : 'secondary'}
+                    fullWidth
+                    onClick={() => onStrategyChange('rent')}
+                    className="property-card__strategy-btn property-card__strategy-btn--large mb-sm"
+                  >
+                    💰 Сдавать
+                  </Button>
+                  <Button
+                    variant={property.strategy === 'flip' ? 'primary' : 'secondary'}
+                    fullWidth
+                    onClick={() => onStrategyChange('flip')}
+                    className="property-card__strategy-btn property-card__strategy-btn--large"
+                  >
+                    🏷️ Продавать
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Залог */}
+            {onTakeLoan && !loan && (
+              <Button
+                variant="ghost"
+                fullWidth
+                onClick={onTakeLoan}
+                className="mb-sm"
+              >
+                💰 Взять залог под объект
+              </Button>
+            )}
+
           </div>
         )}
       </div>
