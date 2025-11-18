@@ -24,15 +24,22 @@ import { MortgageModal } from './components/mobile/MortgageModal';
 import { Toast } from './components/ui/Toast';
 import { Notification } from './components/ui/Notification';
 import { useGameLoop } from './hooks/useGameLoop';
-import { fetchReferenceData } from './api/mockServer';
+import { fetchReferenceData, authenticate } from './api/serverApi';
 import { hydrateReferenceConfig } from './api/serverConfig';
+import { getTelegramUser, getTelegramInitData } from './utils/telegram';
+import { AuthState } from './types/auth';
 import './styles/global.css';
 import './styles/mobile.css';
 
 type Screen = 'dashboard' | 'market' | 'events' | 'missions';
 
 function App() {
-
+  const [authState, setAuthState] = useState<AuthState>({
+    isAuthenticated: false,
+    telegramId: null,
+    playerId: null,
+    userName: null
+  });
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [player, setPlayer] = useState<Player | null>(null);
   const [market, setMarket] = useState<MarketState | null>(null);
@@ -48,36 +55,119 @@ function App() {
     
     async function bootstrap() {
       setIsBootstrapping(true);
-    try {
-        const [reference, snapshot] = await Promise.all([
-          fetchReferenceData(),
-          syncStateUtils.loadGameState()
-        ]);
+      try {
+        // Шаг 1: Получаем данные пользователя из Telegram
+        const telegramUser = getTelegramUser();
+        const initData = getTelegramInitData();
 
-        if (cancelled) {
-          return;
-        }
-
-        if (reference) {
-          hydrateReferenceConfig({
-            loanPresets: reference.loanPresets,
-            rentCoefficients: reference.rentCoefficients,
-            priceCoefficients: reference.priceCoefficients,
-            marketPhases: reference.marketPhases
+        if (!telegramUser) {
+          console.warn('Не удалось получить данные пользователя из Telegram. Используем тестовый режим.');
+          // Для разработки: используем тестовый ID
+          const testTelegramId = 123456789;
+          const authResponse = await authenticate({
+            telegramId: testTelegramId,
+            initData: initData || undefined
           });
-        }
 
-        if (snapshot) {
-          const processedState = syncStateUtils.handleGameEntry(snapshot.player, snapshot.market, snapshot.events);
-          setPlayer(processedState.player);
-          setMarket(processedState.market);
-          setEvents(processedState.events);
-          setMarketProperties(snapshot.availableProperties);
-          setMissions(snapshot.missions);
-          setPlayerAchievements(snapshot.achievements);
-      }
-    } catch (error) {
+          if (!authResponse.success || !authResponse.playerId) {
+            throw new Error(authResponse.message || 'Ошибка авторизации');
+          }
+
+          setAuthState({
+            isAuthenticated: true,
+            telegramId: testTelegramId,
+            playerId: authResponse.playerId,
+            userName: 'Тестовый игрок'
+          });
+
+          // Шаг 2: Загружаем справочные данные и снапшот игрока
+          const [reference, snapshot] = await Promise.all([
+            fetchReferenceData(),
+            syncStateUtils.loadGameState(testTelegramId)
+          ]);
+
+          if (cancelled) return;
+
+          if (reference) {
+            hydrateReferenceConfig({
+              loanPresets: reference.loanPresets,
+              rentCoefficients: reference.rentCoefficients,
+              priceCoefficients: reference.priceCoefficients,
+              marketPhases: reference.marketPhases
+            });
+          }
+
+          if (snapshot) {
+            const processedState = syncStateUtils.handleGameEntry(
+              testTelegramId,
+              snapshot.player,
+              snapshot.market,
+              snapshot.events
+            );
+            setPlayer(processedState.player);
+            setMarket(processedState.market);
+            setEvents(processedState.events);
+            setMarketProperties(snapshot.availableProperties);
+            setMissions(snapshot.missions);
+            setPlayerAchievements(snapshot.achievements);
+          }
+        } else {
+          // Реальная авторизация через Telegram
+          const authResponse = await authenticate({
+            telegramId: telegramUser.id,
+            initData: initData || undefined
+          });
+
+          if (!authResponse.success || !authResponse.playerId) {
+            throw new Error(authResponse.message || 'Ошибка авторизации');
+          }
+
+          setAuthState({
+            isAuthenticated: true,
+            telegramId: telegramUser.id,
+            playerId: authResponse.playerId,
+            userName: telegramUser.first_name || 'Игрок'
+          });
+
+          // Шаг 2: Загружаем справочные данные и снапшот игрока
+          const [reference, snapshot] = await Promise.all([
+            fetchReferenceData(),
+            syncStateUtils.loadGameState(telegramUser.id)
+          ]);
+
+          if (cancelled) return;
+
+          if (reference) {
+            hydrateReferenceConfig({
+              loanPresets: reference.loanPresets,
+              rentCoefficients: reference.rentCoefficients,
+              priceCoefficients: reference.priceCoefficients,
+              marketPhases: reference.marketPhases
+            });
+          }
+
+          if (snapshot) {
+            const processedState = syncStateUtils.handleGameEntry(
+              telegramUser.id,
+              snapshot.player,
+              snapshot.market,
+              snapshot.events
+            );
+            setPlayer(processedState.player);
+            setMarket(processedState.market);
+            setEvents(processedState.events);
+            setMarketProperties(snapshot.availableProperties);
+            setMissions(snapshot.missions);
+            setPlayerAchievements(snapshot.achievements);
+          }
+        }
+      } catch (error) {
         console.error('Ошибка инициализации игры:', error);
+        setToast({
+          message: `Ошибка загрузки: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`,
+          type: 'error',
+          isVisible: true
+        });
       } finally {
         if (!cancelled) {
           setIsBootstrapping(false);
@@ -134,11 +224,12 @@ function App() {
 
   // Автоматическая синхронизация состояния
   useEffect(() => {
-    if (!player || !market || isBootstrapping) {
+    if (!player || !market || isBootstrapping || !authState.telegramId) {
       return;
     }
 
     const stopAutoSync = syncStateUtils.autoSync(
+      authState.telegramId,
       player,
       market,
       events,
@@ -150,7 +241,7 @@ function App() {
       30000
     );
       return stopAutoSync;
-  }, [player, market, events, missions, playerAchievements, marketProperties, isBootstrapping]);
+  }, [player, market, events, missions, playerAchievements, marketProperties, isBootstrapping, authState.telegramId]);
 
   const marketPropertiesRef = useRef<Property[]>([]);
   useEffect(() => {
@@ -171,11 +262,13 @@ function App() {
       setEvents(nextEvents);
       setMissions(nextMissions);
       setPlayerAchievements(nextAchievements);
-      void syncStateUtils.saveGameState(nextPlayer, nextMarket, nextEvents, {
-        missions: nextMissions,
-        achievements: nextAchievements,
-        availableProperties: marketPropertiesRef.current
-      });
+      if (authState.telegramId) {
+        void syncStateUtils.saveGameState(authState.telegramId, nextPlayer, nextMarket, nextEvents, {
+          missions: nextMissions,
+          achievements: nextAchievements,
+          availableProperties: marketPropertiesRef.current
+        });
+      }
     },
     onNotification: (event) => {
             setNotification({

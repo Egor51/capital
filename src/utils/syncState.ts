@@ -1,4 +1,4 @@
-import { persistPlayerSnapshot, fetchPlayerSnapshot } from '../api/mockServer';
+import { persistPlayerSnapshot, fetchPlayerSnapshot } from '../api/serverApi';
 import { Player, MarketState, GameEvent } from '../types';
 import { ServerSyncState, SyncState } from '../types/sync';
 import { processOfflinePeriod } from './realtimeLogic';
@@ -6,8 +6,11 @@ import { migratePlayerToRealtime, migrateMarketToRealtime } from './dataMigratio
 
 /**
  * Сохраняет состояние игры на сервере (мок API)
+ * 
+ * @param telegramId - ID пользователя из Telegram (обязательно)
  */
 export async function saveGameState(
+  telegramId: number,
   player: Player,
   market: MarketState,
   events: GameEvent[],
@@ -27,7 +30,7 @@ export async function saveGameState(
       lastSyncedAt: Date.now()
     };
     
-    await persistPlayerSnapshot(state, extras);
+    await persistPlayerSnapshot(telegramId, state, extras);
   } catch (error) {
     console.error('Ошибка сохранения состояния игры:', error);
   }
@@ -35,10 +38,12 @@ export async function saveGameState(
 
 /**
  * Загружает состояние игры с сервера (мок API)
+ * 
+ * @param telegramId - ID пользователя из Telegram (обязательно)
  */
-export async function loadGameState(): Promise<ServerSyncState | null> {
+export async function loadGameState(telegramId: number): Promise<ServerSyncState | null> {
   try {
-    const state = await fetchPlayerSnapshot();
+    const state = await fetchPlayerSnapshot(telegramId);
     
     const migratedPlayer = migratePlayerToRealtime(state.player);
     const migratedMarket = migrateMarketToRealtime(state.market, state.player.cityId || 'murmansk');
@@ -57,13 +62,22 @@ export async function loadGameState(): Promise<ServerSyncState | null> {
 /**
  * Синхронизирует состояние с сервером
  * В реальной реализации будет делать API запрос
+ * 
+ * @param telegramId - ID пользователя из Telegram (обязательно)
  */
 export async function syncWithServer(
+  telegramId: number,
   _player: Player,
   _market: MarketState
 ): Promise<{ player: Player; market: MarketState; events: GameEvent[] } | null> {
   try {
-    return fetchPlayerSnapshot();
+    const snapshot = await fetchPlayerSnapshot(telegramId);
+    if (!snapshot) return null;
+    return {
+      player: snapshot.player,
+      market: snapshot.market,
+      events: snapshot.events
+    };
   } catch (error) {
     console.error('Ошибка синхронизации с сервером:', error);
     return null;
@@ -73,8 +87,11 @@ export async function syncWithServer(
 /**
  * Обрабатывает вход в игру
  * Проверяет, нужно ли обработать офлайн-период
+ * 
+ * @param telegramId - ID пользователя из Telegram (обязательно)
  */
 export function handleGameEntry(
+  telegramId: number,
   player: Player,
   market: MarketState,
   events: GameEvent[]
@@ -87,7 +104,7 @@ export function handleGameEntry(
     const result = processOfflinePeriod(player, market, lastSyncedAt, now);
     
     // Сохраняем обновленное состояние
-    void saveGameState(result.player, result.market, result.events);
+    void saveGameState(telegramId, result.player, result.market, result.events);
     
     return result;
   }
@@ -98,8 +115,11 @@ export function handleGameEntry(
 /**
  * Автоматическая синхронизация состояния
  * Вызывается периодически для сохранения прогресса
+ * 
+ * @param telegramId - ID пользователя из Telegram (обязательно)
  */
 export function autoSync(
+  telegramId: number,
   player: Player,
   market: MarketState,
   events: GameEvent[],
@@ -107,7 +127,7 @@ export function autoSync(
   intervalMs: number = 30000
 ): () => void {
   const intervalId = setInterval(() => {
-    saveGameState(player, market, events, extras).catch(error => {
+    saveGameState(telegramId, player, market, events, extras).catch(error => {
       console.error('Ошибка авто-синхронизации:', error);
     });
   }, intervalMs);

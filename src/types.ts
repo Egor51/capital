@@ -111,6 +111,7 @@ export interface MarketState {
 
 export interface Player {
   id: string;
+  telegramId?: number;      // ID пользователя из Telegram (для авторизации)
   name: string;
   cash: number;              // Свободные деньги (₽)
   softCurrency?: number;     // MRC (если Web3)
