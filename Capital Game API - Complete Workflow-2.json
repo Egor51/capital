@@ -1,0 +1,567 @@
+{
+  "name": "Capital Game API - Complete Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "player-snapshot",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "25b73f2b-8c0f-4ac0-b1b8-186020a07537",
+      "name": "Webhook: Save Snapshot",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        48
+      ],
+      "webhookId": "save-snapshot"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Извлекаем данные из body запроса\nconst body = $input.first().json?.body || $input.first().json || $json?.body || $json;\n\n// Проверяем наличие обязательных полей\nconst { telegramId, player, market, events, lastSyncedAt, missions, achievements, availableProperties } = body || {};\n\nif (!telegramId || telegramId <= 0) {\n\treturn [{\n\t\tjson: {\n\t\t\tsuccess: false,\n\t\t\tmessage: 'telegramId is required and must be positive',\n\t\t\treceived: { telegramId, hasBody: !!body }\n\t\t},\n\t}];\n}\n\nif (!player || !market || lastSyncedAt === undefined) {\n\treturn [{\n\t\tjson: {\n\t\t\tsuccess: false,\n\t\t\tmessage: 'player, market, and lastSyncedAt are required',\n\t\t\treceived: {\n\t\t\t\thasPlayer: !!player,\n\t\t\t\thasMarket: !!market,\n\t\t\t\thasLastSyncedAt: lastSyncedAt !== undefined\n\t\t\t}\n\t\t},\n\t}];\n}\n\n// Подготавливаем данные для сохранения\nconst playerData = JSON.stringify(player);\nconst marketData = JSON.stringify(market);\nconst eventsData = JSON.stringify(events || []);\nconst missionsData = JSON.stringify(missions || []);\nconst achievementsData = JSON.stringify(achievements || []);\nconst availablePropertiesData = JSON.stringify(availableProperties || []);\n\n// SQL запрос для вызова функции upsert (однострочный, без комментариев)\nconst query = \"SELECT upsert_player_snapshot($1::BIGINT, $2::JSONB, $3::JSONB, $4::JSONB, $5::BIGINT, $6::JSONB, $7::JSONB, $8::JSONB) as result;\";\n\n// Возвращаем данные для PostgreSQL node\n// ВАЖНО: parameters должен быть массивом\nconst parametersArray = [\n\ttelegramId,\n\tplayerData,\n\tmarketData,\n\teventsData,\n\tlastSyncedAt,\n\tmissionsData,\n\tachievementsData,\n\tavailablePropertiesData\n];\n\nreturn [{\n\tjson: {\n\t\tquery: query,\n\t\tparameters: parametersArray,\n\t\t_metadata: {\n\t\t\ttelegramId: telegramId,\n\t\t\tlastSyncedAt: lastSyncedAt,\n\t\t\thasMissions: !!missions && missions.length > 0,\n\t\t\thasAchievements: !!achievements && achievements.length > 0,\n\t\t\thasAvailableProperties: !!availableProperties && availableProperties.length > 0\n\t\t}\n\t}\n}];"
+      },
+      "id": "952c8100-c673-4eea-beeb-8843db27dbe6",
+      "name": "Code: Prepare Save",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.query }}",
+        "options": {
+          "queryReplacement": true
+        },
+        "additionalFields": {
+          "queryParameters": "={{ $json.parameters || [] }}"
+        }
+      },
+      "id": "3b6c92aa-0a06-4d2f-9ab0-26c0b8a8932d",
+      "name": "Postgres: Save Snapshot",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1712,
+        48
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "SAUwXVCWVyKYBmpV",
+          "name": "Postgres GAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Обработка результата сохранения\nconst input = $input.first().json;\nconst metadata = $('Code: Prepare Save').item.json._metadata;\n\n// Проверяем, была ли ошибка\nif (input.error) {\n\treturn [{\n\t\tjson: {\n\t\t\tsuccess: false,\n\t\t\tmessage: 'Database error: ' + input.error.message,\n\t\t\terror: input.error\n\t\t}\n\t}];\n}\n\n// Успешное сохранение\nreturn [{\n\tjson: {\n\t\tsuccess: true,\n\t\ttelegramId: metadata.telegramId,\n\t\tlastSyncedAt: metadata.lastSyncedAt,\n\t\tmessage: 'Snapshot saved successfully'\n\t}\n}];"
+      },
+      "id": "509bdd8e-0eb2-4acb-b460-d94afd9de038",
+      "name": "Code: Response Save",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "path": "player-snapshot",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "d0136bec-f9c4-49fc-8290-d2a07bf7e750",
+      "name": "Webhook: Get Snapshot",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        256
+      ],
+      "webhookId": "get-snapshot"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Извлекаем telegramId из query параметров\nconst input = $input.first().json;\nconst query = input?.query || {};\n\n// Пробуем разные варианты извлечения telegramId\nlet telegramId = query.telegramId || input?.telegramId;\n\n// Если telegramId строка, преобразуем в число\nif (typeof telegramId === 'string') {\n\ttelegramId = parseInt(telegramId, 10);\n}\n\nif (!telegramId || telegramId <= 0 || isNaN(telegramId)) {\n\treturn [{\n\t\tjson: {\n\t\t\tsuccess: false,\n\t\t\tmessage: 'telegramId is required in query parameters',\n\t\t\treceived: { telegramId, query: query, input: input }\n\t\t},\n\t}];\n}\n\n// SQL запрос для получения snapshot (однострочный)\nconst sqlQuery = \"SELECT player_data, market_data, events_data, missions_data, achievements_data, available_properties_data, last_synced_at FROM player_snapshots WHERE telegram_id = $1::BIGINT;\";\n\n// Возвращаем данные для PostgreSQL node\nreturn [{\n\tjson: {\n\t\tquery: sqlQuery,\n\t\tparameters: [telegramId],\n\t\t_metadata: {\n\t\t\ttelegramId: telegramId,\n\t\t\toperation: 'get_snapshot'\n\t\t}\n\t}\n}];"
+      },
+      "id": "c7c78be8-97a9-4174-93fc-78efe397fe3c",
+      "name": "Code: Prepare Get",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.query }}",
+        "options": {
+          "queryReplacement": true
+        },
+        "additionalFields": {
+          "queryParameters": "={{ $json.parameters || [] }}"
+        }
+      },
+      "id": "a0d1ef9d-0d76-45c7-8dd8-effbe441ce3e",
+      "name": "Postgres: Get Snapshot",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1712,
+        256
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "SAUwXVCWVyKYBmpV",
+          "name": "Postgres GAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Обработка результата получения snapshot\nconst items = $input.all();\nconst metadata = $('Code: Prepare Get').item.json._metadata;\n\n// Проверяем, была ли ошибка\nif (items.length > 0 && items[0].json && items[0].json.error) {\n\treturn [{\n\t\tjson: {\n\t\t\tsuccess: false,\n\t\t\tmessage: 'Database error: ' + items[0].json.error.message,\n\t\t\terror: items[0].json.error\n\t\t}\n\t}];\n}\n\n// Проверяем, найден ли snapshot\nif (!items || items.length === 0 || !items[0] || !items[0].json) {\n\treturn [{\n\t\tjson: {\n\t\t\tsuccess: false,\n\t\t\tmessage: 'Player snapshot not found',\n\t\t\ttelegramId: metadata.telegramId\n\t\t}\n\t}];\n}\n\nconst snapshot = items[0].json;\n\n// Функция для безопасного парсинга JSONB полей\nfunction parseJsonbField(field) {\n\tif (!field) return null;\n\tif (typeof field === 'object') return field;\n\tif (typeof field === 'string') {\n\t\ttry {\n\t\t\treturn JSON.parse(field);\n\t\t} catch (e) {\n\t\t\treturn field;\n\t\t}\n\t}\n\treturn field;\n}\n\n// Парсим JSONB поля (они могут приходить как строки или объекты)\nconst playerData = parseJsonbField(snapshot.player_data);\nconst marketData = parseJsonbField(snapshot.market_data);\nconst eventsData = parseJsonbField(snapshot.events_data) || [];\nconst missionsData = parseJsonbField(snapshot.missions_data) || [];\nconst achievementsData = parseJsonbField(snapshot.achievements_data) || [];\nconst availablePropertiesData = parseJsonbField(snapshot.available_properties_data) || [];\n\n// Проверяем наличие обязательных полей\nif (!playerData || !marketData) {\n\treturn [{\n\t\tjson: {\n\t\t\tsuccess: false,\n\t\t\tmessage: 'Snapshot data is incomplete',\n\t\t\ttelegramId: metadata.telegramId,\n\t\t\tdebug: {\n\t\t\t\thasPlayerData: !!playerData,\n\t\t\t\thasMarketData: !!marketData,\n\t\t\t\tsnapshotKeys: Object.keys(snapshot)\n\t\t\t}\n\t\t}\n\t}];\n}\n\n// Форматируем ответ в формате, ожидаемом клиентом\nreturn [{\n\tjson: {\n\t\tsuccess: true,\n\t\tplayer: playerData,\n\t\tmarket: marketData,\n\t\tevents: Array.isArray(eventsData) ? eventsData : [],\n\t\tmissions: Array.isArray(missionsData) ? missionsData : [],\n\t\tachievements: Array.isArray(achievementsData) ? achievementsData : [],\n\t\tavailableProperties: Array.isArray(availablePropertiesData) ? availablePropertiesData : [],\n\t\tlastSyncedAt: snapshot.last_synced_at\n\t}\n}];"
+      },
+      "id": "1b454742-fc84-43d6-9d56-ff4af697b368",
+      "name": "Code: Response Get",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "auth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "dd1980bb-0091-4619-81db-51ea497aa589",
+      "name": "Webhook: Auth",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        448
+      ],
+      "webhookId": "auth"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Обработка авторизации\nconst body = $input.first().json?.body || $input.first().json || $json?.body || $json;\nconst { telegramId, initData } = body || {};\n\nif (!telegramId || telegramId <= 0) {\n\treturn [{\n\t\tjson: {\n\t\t\tsuccess: false,\n\t\t\tmessage: 'telegramId is required and must be positive'\n\t\t}\n\t}];\n}\n\n// Проверяем, существует ли игрок в БД\nconst checkQuery = \"SELECT telegram_id, player_id, created_at FROM players WHERE telegram_id = $1::BIGINT;\";\n\nreturn [{\n\tjson: {\n\t\tquery: checkQuery,\n\t\tparameters: [telegramId],\n\t\ttelegramId: telegramId,\n\t\tinitData: initData,\n\t\t_metadata: {\n\t\t\toperation: 'check_player_exists'\n\t\t}\n\t}\n}];"
+      },
+      "id": "ae9418b5-24d4-4521-87d5-23589b73ad40",
+      "name": "Code: Prepare Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.query }}",
+        "options": {
+          "queryReplacement": true
+        },
+        "additionalFields": {
+          "queryParameters": "={{ $json.parameters || [] }}"
+        }
+      },
+      "id": "37edae1c-28b5-4bb6-8d8e-7755fee0d0fe",
+      "name": "Postgres: Check Player",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1712,
+        448
+      ],
+      "notesInFlow": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "SAUwXVCWVyKYBmpV",
+          "name": "Postgres GAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Обработка результата проверки игрока\nconst items = $input.all();\n\n// Если вдруг нода Postgres настроена как \"Continue on Fail\" и вернула error в json\nif (items[0]?.json?.error) {\n  return [{\n    json: {\n      success: false,\n      message: 'Database error: ' + items[0].json.error.message,\n      error: items[0].json.error,\n    },\n  }];\n}\n\nconst metadata = $('Code: Prepare Auth').item.json._metadata;\nconst telegramId = $('Code: Prepare Auth').item.json.telegramId;\n\n// Первая строка результата (если игрок найден)\nconst existingPlayerRow = items.length > 0 ? items[0].json : null;\nconst playerExists = !!existingPlayerRow;\n\nif (playerExists) {\n  // Игрок существует - возвращаем его данные\n  const player = existingPlayerRow;\n\n  return [{\n    json: {\n      success: true,\n      playerId: player.player_id || `player-${telegramId}`,\n      isNewPlayer: false,\n      token: `token-${telegramId}-${Date.now()}`,\n      createdAt: player.created_at || Date.now()\n    },\n  }];\n}\n\n// Игрок не существует - создаём нового\nconst now = Date.now();\n\nconst initialPlayer = {\n  id: `player-${telegramId}`,\n  telegramId,\n  name: 'Игрок',\n  cash: 1500000,\n  netWorth: 1500000,\n  loans: [],\n  properties: [],\n  cityId: 'murmansk',\n  difficulty: 'normal',\n  experience: 0,\n  level: 1,\n  stats: {\n    totalSales: 0,\n    totalRentIncome: 0,\n    totalRenovations: 0,\n    propertiesOwned: 0,\n  },\n  lastSyncedAt: now,\n  createdAt: now,\n  currentMonth: 0,\n  totalMonths: 0,\n};\n\nconst initialMarket = {\n  cityId: 'murmansk',\n  phase: 'стабильность',\n  priceIndex: 1,\n  rentIndex: 1,\n  vacancyRate: 0.05,\n  activeEvents: [],\n  lastUpdatedAt: now,\n  currentPhase: 'стабильность',\n};\n\nconst createQuery = 'SELECT upsert_player_snapshot($1::BIGINT, $2::JSONB, $3::JSONB, $4::JSONB, $5::BIGINT, $6::JSONB, $7::JSONB, $8::JSONB) as result;';\n\nreturn [{\n  json: {\n    query: createQuery,\n    parameters: [\n      telegramId,\n      JSON.stringify(initialPlayer),\n      JSON.stringify(initialMarket),\n      JSON.stringify([]),\n      now,\n      JSON.stringify([]),\n      JSON.stringify([]),\n      JSON.stringify([]),\n    ],\n    _metadata: {\n      operation: 'create_new_player',\n      telegramId,\n    },\n  },\n}];\n"
+      },
+      "id": "7ce407db-fc92-458a-9722-33818da8e857",
+      "name": "Code: Process Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-operation",
+              "leftValue": "={{ $json._metadata.operation }}",
+              "rightValue": "create_new_player",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "43c8e467-0401-46c9-9f15-ea3d4e8ff109",
+      "name": "IF: Create Player?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.query }}",
+        "options": {
+          "queryReplacement": true
+        },
+        "additionalFields": {
+          "queryParameters": "={{ $json.parameters || [] }}"
+        }
+      },
+      "id": "a6d5b07c-c377-43fb-8105-ce20d8435a4f",
+      "name": "Postgres: Create Player",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2368,
+        352
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SAUwXVCWVyKYBmpV",
+          "name": "Postgres GAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Формируем финальный ответ авторизации\nconst input = $input.first().json;\nconst telegramId = $('Code: Prepare Auth').item.json.telegramId;\n\n// Проверяем, была ли ошибка при создании\nif (input && input.error) {\n\treturn [{\n\t\tjson: {\n\t\t\tsuccess: false,\n\t\t\tmessage: 'Failed to create player: ' + input.error.message\n\t\t}\n\t}];\n}\n\n// Успешное создание нового игрока\nreturn [{\n\tjson: {\n\t\tsuccess: true,\n\t\tplayerId: `player-${telegramId}`,\n\t\tisNewPlayer: true,\n\t\ttoken: `token-${telegramId}-${Date.now()}`\n\t}\n}];"
+      },
+      "id": "7c6821d2-fcbc-452d-9891-6a06101bbe81",
+      "name": "Code: Response Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2592,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "path": "reference-data",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "29e71445-ed2b-462a-a73f-c36f797eb697",
+      "name": "Webhook: Reference Data",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        656
+      ],
+      "webhookId": "reference-data"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Возвращаем статические справочные данные\n// В реальном приложении эти данные могут храниться в БД или конфиге\n\nconst referenceData = {\n\tcities: [\n\t\t{\n\t\t\tid: 'murmansk',\n\t\t\tname: 'Мурманск',\n\t\t\tdistricts: ['Центр', 'Спальный район', 'Возле порта', 'Отдалённый район'],\n\t\t\tbasePrice: 3000000,\n\t\t\tbaseRent: 25000\n\t\t}\n\t],\n\tloanPresets: {\n\t\teasy: {\n\t\t\tbaseInterestRate: 8.5,\n\t\t\tmaxLtv: 0.8,\n\t\t\tdescription: 'Лёгкая сложность'\n\t\t},\n\t\tnormal: {\n\t\t\tbaseInterestRate: 12.5,\n\t\t\tmaxLtv: 0.7,\n\t\t\tdescription: 'Нормальная сложность'\n\t\t},\n\t\thard: {\n\t\t\tbaseInterestRate: 18.0,\n\t\t\tmaxLtv: 0.6,\n\t\t\tdescription: 'Сложная сложность'\n\t\t}\n\t},\n\tmarketPhases: [\n\t\t{ id: 'growth', name: 'Рост', priceMultiplier: 1.1, rentMultiplier: 1.05 },\n\t\t{ id: 'stability', name: 'Стабильность', priceMultiplier: 1.0, rentMultiplier: 1.0 },\n\t\t{ id: 'crisis', name: 'Кризис', priceMultiplier: 0.85, rentMultiplier: 0.9 }\n\t],\n\tstartingCash: {\n\t\teasy: 2000000,\n\t\tnormal: 1500000,\n\t\thard: 1000000\n\t}\n};\n\nreturn [{\n\tjson: referenceData\n}];"
+      },
+      "id": "99d8d438-dfe7-4ba1-9ca1-40d149669017",
+      "name": "Code: Reference Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "content": ""
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2432,
+        176
+      ],
+      "typeVersion": 1,
+      "id": "8771e1f6-3fd2-42cd-9e43-a22835ba921a",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {
+    "Webhook: Auth": [
+      {
+        "json": {
+          "headers": {
+            "host": "my-traffic.space",
+            "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+            "content-length": "627",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br",
+            "accept-language": "ru",
+            "content-type": "application/json",
+            "origin": "https://egor51.github.io",
+            "referer": "https://egor51.github.io/",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "176.97.98.3",
+            "x-forwarded-host": "my-traffic.space",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "fa3591ddfafe",
+            "x-real-ip": "176.97.98.3"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "telegramId": 299235877,
+            "initData": "user=%7B%22id%22%3A299235877%2C%22first_name%22%3A%22Egor%22%2C%22last_name%22%3A%22%22%2C%22username%22%3A%22Egor_018%22%2C%22language_code%22%3A%22ru%22%2C%22is_premium%22%3Atrue%2C%22allows_write_to_pm%22%3Atrue%2C%22photo_url%22%3A%22https%3A%5C%2F%5C%2Ft.me%5C%2Fi%5C%2Fuserpic%5C%2F320%5C%2F5reb7jLkKjSPwRiIz_I8bHEqqXjot8FaSQW0WWs1uyA.svg%22%7D&chat_instance=5818860556727229171&chat_type=sender&auth_date=1763478531&signature=4_BwMciKgoF7-t9lHv9M_iKJdQpsVXNVCThUq18K8APJZcx-WAH2CALtM79IGc9s9J8TUQTRB4p3JNzM3duDDA&hash=4c8bcc21c3090d399b74379cf1c70d4578d550a37a3164edca905dfeb5c3ff16"
+          },
+          "webhookUrl": "https://my-traffic.space/webhook/auth",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "Webhook: Get Snapshot": [
+      {
+        "json": {
+          "headers": {
+            "host": "my-traffic.space",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br",
+            "accept-language": "ru",
+            "content-type": "application/json",
+            "if-none-match": "W/\"50-SceH8jg7QcS7lBvmPjKn5Yu+MUw\"",
+            "origin": "http://localhost:5173",
+            "referer": "http://localhost:5173/",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "193.124.254.138",
+            "x-forwarded-host": "my-traffic.space",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "fa3591ddfafe",
+            "x-real-ip": "193.124.254.138"
+          },
+          "params": {},
+          "query": {
+            "telegramId": "123456789"
+          },
+          "webhookUrl": "https://my-traffic.space/webhook/player-snapshot",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook: Save Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Code: Prepare Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Prepare Save": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Save Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Save Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Code: Response Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Get Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Code: Prepare Get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Prepare Get": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Get Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Get Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Code: Response Get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Auth": {
+      "main": [
+        [
+          {
+            "node": "Code: Prepare Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Prepare Auth": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Check Player",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Check Player": {
+      "main": [
+        [
+          {
+            "node": "Code: Process Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Process Auth": {
+      "main": [
+        [
+          {
+            "node": "IF: Create Player?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Create Player?": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Create Player",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code: Response Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres: Create Player": {
+      "main": [
+        [
+          {
+            "node": "Code: Response Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Reference Data": {
+      "main": [
+        [
+          {
+            "node": "Code: Reference Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2608bb22-6ba2-405a-a4fa-4f01d89a98c5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4e1fc74cf5e3d6a322c683bc0e02133fab8ea2b1599d10fe280c71b339f956fc"
+  },
+  "id": "OFiFY59RHipXkgmO",
+  "tags": [
+    {
+      "createdAt": "2025-11-18T14:39:54.744Z",
+      "updatedAt": "2025-11-18T14:39:54.744Z",
+      "id": "oIPQ269Ij5OVIP6O",
+      "name": "Capital Game"
+    }
+  ]
+}

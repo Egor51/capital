@@ -33,15 +33,53 @@ function isNetworkError(error: unknown): boolean {
 /**
  * Извлекает данные из ответа сервера
  * Сервер может возвращать данные как массив с одним элементом или как объект
+ * n8n может возвращать данные в формате { success: true, ...data } или { success: false, message: ... }
+ * 
+ * ВАЖНО: Для AuthResponse сохраняем поле success, так как оно нужно клиенту
  */
-function extractData<T>(response: T | T[]): T {
+function extractData<T>(response: T | T[] | { success: boolean; [key: string]: any }): T {
+  // Если это массив
   if (Array.isArray(response)) {
     if (response.length === 0) {
       throw new Error('Server returned empty array');
     }
-    return response[0];
+    const firstItem = response[0] as any;
+    // Проверяем, не обёрнут ли ответ в { success, ... }
+    if (firstItem && typeof firstItem === 'object' && 'success' in firstItem) {
+      if (!firstItem.success) {
+        throw new Error(firstItem.message || 'Server returned error');
+      }
+      // Для AuthResponse возвращаем весь объект (включая success)
+      // Для других типов извлекаем данные без success
+      if ('playerId' in firstItem || 'isNewPlayer' in firstItem) {
+        // Это AuthResponse - возвращаем как есть
+        return firstItem as T;
+      }
+      // Для других типов извлекаем данные
+      const { success, message, ...data } = firstItem;
+      return data as T;
+    }
+    return firstItem;
   }
-  return response;
+  
+  // Если это объект с полем success (ответ от n8n)
+  const responseObj = response as any;
+  if (responseObj && typeof responseObj === 'object' && 'success' in responseObj) {
+    if (!responseObj.success) {
+      throw new Error(responseObj.message || 'Server returned error');
+    }
+    // Для AuthResponse возвращаем весь объект (включая success)
+    // Для других типов извлекаем данные без success
+    if ('playerId' in responseObj || 'isNewPlayer' in responseObj) {
+      // Это AuthResponse - возвращаем как есть
+      return responseObj as T;
+    }
+    // Для других типов извлекаем данные
+    const { success, message, ...data } = responseObj;
+    return data as T;
+  }
+  
+  return response as T;
 }
 
 /**
@@ -78,8 +116,16 @@ async function fetchAPI<T>(
     }
 
     const data = await response.json();
-    // Извлекаем данные, если ответ пришёл в виде массива
-    return extractData<T>(data);
+    // Логируем для отладки (можно убрать в продакшене)
+    if (endpoint.includes('player-snapshot') || endpoint.includes('auth')) {
+      console.log(`[API] ${endpoint} - Raw response:`, data);
+    }
+    // Извлекаем данные, если ответ пришёл в виде массива или обёрнут в { success, ... }
+    const extracted = extractData<T>(data);
+    if (endpoint.includes('player-snapshot') || endpoint.includes('auth')) {
+      console.log(`[API] ${endpoint} - Extracted data:`, extracted);
+    }
+    return extracted;
   } catch (error) {
     // Если это сетевая ошибка или CORS, пробрасываем дальше
     if (isNetworkError(error)) {
@@ -103,10 +149,33 @@ async function fetchAPI<T>(
 export async function authenticate(
   request: AuthRequest
 ): Promise<AuthResponse> {
-  return await fetchAPI<AuthResponse>('/auth', {
-    method: 'POST',
-    body: JSON.stringify(request),
-  });
+  try {
+    const response = await fetchAPI<AuthResponse>('/auth', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+    
+    // Логируем для отладки
+    console.log('[API] Auth response:', response);
+    
+    // Проверяем, что ответ содержит success
+    if (response && typeof response === 'object' && 'success' in response) {
+      return response as AuthResponse;
+    }
+    
+    // Если success нет, но есть другие поля, создаём ответ
+    if (response && typeof response === 'object') {
+      return {
+        success: true,
+        ...(response as any)
+      } as AuthResponse;
+    }
+    
+    throw new Error('Invalid auth response format');
+  } catch (error) {
+    console.error('[API] Auth error:', error);
+    throw error;
+  }
 }
 
 /**
