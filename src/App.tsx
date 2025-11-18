@@ -28,6 +28,7 @@ import { fetchReferenceData, authenticate } from './api/serverApi';
 import { hydrateReferenceConfig } from './api/serverConfig';
 import { getTelegramUser, getTelegramInitData } from './utils/telegram';
 import { AuthState } from './types/auth';
+import { initialMissions, achievements as initialAchievements } from './data/missions';
 import './styles/global.css';
 import './styles/mobile.css';
 
@@ -95,6 +96,11 @@ function App() {
               priceCoefficients: reference.priceCoefficients,
               marketPhases: reference.marketPhases
             });
+            
+            // Используем properties из reference как доступные объекты на рынке
+            if (reference.properties && reference.properties.length > 0) {
+              setMarketProperties(reference.properties);
+            }
           }
 
           if (snapshot) {
@@ -113,9 +119,17 @@ function App() {
             setPlayer(processedState.player);
             setMarket(processedState.market);
             setEvents(processedState.events);
-            setMarketProperties(snapshot.availableProperties || []);
-            setMissions(snapshot.missions || []);
-            setPlayerAchievements(snapshot.achievements || []);
+            
+            // Используем availableProperties из snapshot, если есть, иначе из reference
+            if (snapshot.availableProperties && snapshot.availableProperties.length > 0) {
+              setMarketProperties(snapshot.availableProperties);
+            } else if (reference && reference.properties && reference.properties.length > 0) {
+              setMarketProperties(reference.properties);
+            }
+            
+            // Используем миссии и достижения из snapshot, если есть, иначе начальные
+            setMissions(snapshot.missions && snapshot.missions.length > 0 ? snapshot.missions : initialMissions);
+            setPlayerAchievements(snapshot.achievements && snapshot.achievements.length > 0 ? snapshot.achievements : initialAchievements);
           } else {
             console.warn('Снапшот игрока не загружен, возможно это новый игрок');
             throw new Error('Не удалось загрузить состояние игры. Попробуйте обновить страницу.');
@@ -153,6 +167,11 @@ function App() {
               priceCoefficients: reference.priceCoefficients,
               marketPhases: reference.marketPhases
             });
+            
+            // Используем properties из reference как доступные объекты на рынке
+            if (reference.properties && reference.properties.length > 0) {
+              setMarketProperties(reference.properties);
+            }
           }
 
           if (snapshot) {
@@ -171,9 +190,17 @@ function App() {
             setPlayer(processedState.player);
             setMarket(processedState.market);
             setEvents(processedState.events);
-            setMarketProperties(snapshot.availableProperties || []);
-            setMissions(snapshot.missions || []);
-            setPlayerAchievements(snapshot.achievements || []);
+            
+            // Используем availableProperties из snapshot, если есть, иначе из reference
+            if (snapshot.availableProperties && snapshot.availableProperties.length > 0) {
+              setMarketProperties(snapshot.availableProperties);
+            } else if (reference && reference.properties && reference.properties.length > 0) {
+              setMarketProperties(reference.properties);
+            }
+            
+            // Используем миссии и достижения из snapshot, если есть, иначе начальные
+            setMissions(snapshot.missions && snapshot.missions.length > 0 ? snapshot.missions : initialMissions);
+            setPlayerAchievements(snapshot.achievements && snapshot.achievements.length > 0 ? snapshot.achievements : initialAchievements);
           } else {
             console.warn('Снапшот игрока не загружен, возможно это новый игрок');
             // Если снапшот не загружен, это может быть новый игрок

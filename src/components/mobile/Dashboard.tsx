@@ -64,7 +64,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {getAvatar(player.name)}
           </div>
           <div className="dashboard__user-details">
-            <div className="dashboard__user-name">{player.name}</div>
+            <div className="dashboard__user-name">{player.telegramId}</div>
             <div className="dashboard__user-rating">
               <span className="dashboard__rating-label">Рейтинг:</span>
               <span className="dashboard__rating-value">{rating.toLocaleString('ru-RU')}</span>
