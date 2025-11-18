@@ -55,6 +55,22 @@ function extractData<T>(response: T | T[] | { success: boolean; [key: string]: a
         // Это AuthResponse - возвращаем как есть
         return firstItem as T;
       }
+      // Для snapshot и других типов извлекаем данные без success и message
+      if ('player' in firstItem || 'market' in firstItem) {
+        // Это snapshot - убираем success и message
+        console.log('[extractData] Обработка snapshot из массива:', {
+          hasPlayer: 'player' in firstItem,
+          hasMarket: 'market' in firstItem,
+          keys: Object.keys(firstItem)
+        });
+        const { success, message, debug, ...data } = firstItem;
+        console.log('[extractData] Данные после извлечения:', {
+          hasPlayer: 'player' in data,
+          hasMarket: 'market' in data,
+          keys: Object.keys(data)
+        });
+        return data as T;
+      }
       // Для других типов извлекаем данные
       const { success, message, ...data } = firstItem;
       return data as T;
@@ -73,6 +89,23 @@ function extractData<T>(response: T | T[] | { success: boolean; [key: string]: a
     if ('playerId' in responseObj || 'isNewPlayer' in responseObj) {
       // Это AuthResponse - возвращаем как есть
       return responseObj as T;
+    }
+    // Для snapshot извлекаем данные без success и message
+    if ('player' in responseObj || 'market' in responseObj) {
+      // Это snapshot - убираем success, message и debug
+      console.log('[extractData] Обработка snapshot из объекта:', {
+        hasPlayer: 'player' in responseObj,
+        hasMarket: 'market' in responseObj,
+        keys: Object.keys(responseObj)
+      });
+      const { success, message, debug, ...data } = responseObj;
+      console.log('[extractData] Данные после извлечения (объект):', {
+        hasPlayer: 'player' in data,
+        hasMarket: 'market' in data,
+        keys: Object.keys(data),
+        marketPhase: (data as any).market?.phase
+      });
+      return data as T;
     }
     // Для других типов извлекаем данные
     const { success, message, ...data } = responseObj;

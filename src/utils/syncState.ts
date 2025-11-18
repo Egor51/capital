@@ -43,13 +43,38 @@ export async function saveGameState(
  */
 export async function loadGameState(telegramId: number): Promise<ServerSyncState | null> {
   try {
+    console.log('[loadGameState] Загрузка snapshot для telegramId:', telegramId);
     const state = await fetchPlayerSnapshot(telegramId);
+    console.log('[loadGameState] Получен snapshot:', state);
     
     // Проверяем, что состояние загружено и содержит необходимые данные
-    if (!state || !state.player || !state.market) {
-      console.warn('Загруженное состояние неполное или отсутствует');
+    if (!state) {
+      console.warn('[loadGameState] Snapshot пустой или null');
       return null;
     }
+    
+    // Нормализуем lastSyncedAt (может прийти как строка из JSONB)
+    if (state.lastSyncedAt && typeof state.lastSyncedAt === 'string') {
+      state.lastSyncedAt = parseInt(state.lastSyncedAt, 10);
+    }
+    
+    if (!state.player || !state.market) {
+      console.warn('[loadGameState] Загруженное состояние неполное:', {
+        hasPlayer: !!state.player,
+        hasMarket: !!state.market,
+        stateKeys: Object.keys(state),
+        state: state
+      });
+      return null;
+    }
+    
+    console.log('[loadGameState] Миграция данных...');
+    console.log('[loadGameState] Исходный market:', {
+      hasMarket: !!state.market,
+      marketPhase: state.market?.phase,
+      marketCityId: state.market?.cityId,
+      marketKeys: state.market ? Object.keys(state.market) : []
+    });
     
     const migratedPlayer = migratePlayerToRealtime(state.player);
     const migratedMarket = migrateMarketToRealtime(
@@ -57,13 +82,42 @@ export async function loadGameState(telegramId: number): Promise<ServerSyncState
       state.player.cityId || 'murmansk'
     );
     
-    return {
+    console.log('[loadGameState] После миграции:', {
+      hasMigratedPlayer: !!migratedPlayer,
+      hasMigratedMarket: !!migratedMarket,
+      migratedMarketPhase: migratedMarket?.phase,
+      migratedMarketCityId: migratedMarket?.cityId,
+      migratedMarketKeys: migratedMarket ? Object.keys(migratedMarket) : []
+    });
+    
+    if (!migratedMarket) {
+      console.error('[loadGameState] ОШИБКА: migrateMarketToRealtime вернул null/undefined!');
+      return null;
+    }
+    
+    const result: ServerSyncState = {
       ...state,
       player: migratedPlayer,
-      market: migratedMarket
+      market: migratedMarket,
+      events: Array.isArray(state.events) ? state.events : [],
+      missions: Array.isArray(state.missions) ? state.missions : [],
+      achievements: Array.isArray(state.achievements) ? state.achievements : [],
+      availableProperties: Array.isArray(state.availableProperties) ? state.availableProperties : [],
+      lastSyncedAt: typeof state.lastSyncedAt === 'number' ? state.lastSyncedAt : Date.now()
     };
+    
+    console.log('[loadGameState] Snapshot успешно загружен и обработан:', {
+      hasPlayer: !!result.player,
+      hasMarket: !!result.market,
+      playerCash: result.player?.cash,
+      playerPropertiesCount: result.player?.properties?.length || 0,
+      playerProperties: result.player?.properties?.map(p => ({ id: p.id, name: p.name })) || [],
+      marketPhase: result.market?.phase,
+      marketCityId: result.market?.cityId
+    });
+    return result;
   } catch (error) {
-    console.error('Ошибка загрузки состояния игры:', error);
+    console.error('[loadGameState] Ошибка загрузки состояния игры:', error);
     return null;
   }
 }
@@ -105,18 +159,39 @@ export function handleGameEntry(
   market: MarketState,
   events: GameEvent[]
 ): { player: Player; market: MarketState; events: GameEvent[] } {
+  console.log('[handleGameEntry] Вход:', {
+    telegramId,
+    hasPlayer: !!player,
+    hasMarket: !!market,
+    marketPhase: market?.phase,
+    lastSyncedAt: player.lastSyncedAt
+  });
+  
   const now = Date.now();
   const lastSyncedAt = player.lastSyncedAt || player.createdAt || now;
   
   // Если прошло больше минуты с последней синхронизации, обрабатываем офлайн-период
   if (now - lastSyncedAt > 60000) {
+    console.log('[handleGameEntry] Обработка офлайн-периода...');
     const result = processOfflinePeriod(player, market, lastSyncedAt, now);
+    
+    console.log('[handleGameEntry] Результат после processOfflinePeriod:', {
+      hasPlayer: !!result.player,
+      hasMarket: !!result.market,
+      marketPhase: result.market?.phase
+    });
     
     // Сохраняем обновленное состояние
     void saveGameState(telegramId, result.player, result.market, result.events);
     
     return result;
   }
+  
+  console.log('[handleGameEntry] Возврат без обработки офлайн-периода:', {
+    hasPlayer: !!player,
+    hasMarket: !!market,
+    marketPhase: market?.phase
+  });
   
   return { player, market, events };
 }
