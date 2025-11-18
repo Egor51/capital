@@ -45,8 +45,17 @@ export async function loadGameState(telegramId: number): Promise<ServerSyncState
   try {
     const state = await fetchPlayerSnapshot(telegramId);
     
+    // Проверяем, что состояние загружено и содержит необходимые данные
+    if (!state || !state.player || !state.market) {
+      console.warn('Загруженное состояние неполное или отсутствует');
+      return null;
+    }
+    
     const migratedPlayer = migratePlayerToRealtime(state.player);
-    const migratedMarket = migrateMarketToRealtime(state.market, state.player.cityId || 'murmansk');
+    const migratedMarket = migrateMarketToRealtime(
+      state.market, 
+      state.player.cityId || 'murmansk'
+    );
     
     return {
       ...state,

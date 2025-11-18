@@ -6,6 +6,10 @@ import { getDefaultCity } from '../data/cities';
  * Мигрирует старые данные игрока в новый формат с реальным временем
  */
 export function migratePlayerToRealtime(player: Player): Player {
+  if (!player) {
+    throw new Error('Player is required for migration');
+  }
+  
   const now = Date.now();
   const defaultCity = getDefaultCity();
   
@@ -14,8 +18,8 @@ export function migratePlayerToRealtime(player: Player): Player {
     cityId: player.cityId || defaultCity.id,
     lastSyncedAt: player.lastSyncedAt || now,
     createdAt: player.createdAt || now,
-    properties: player.properties.map(prop => migratePropertyToRealtime(prop, defaultCity.id)),
-    loans: player.loans.map(loan => migrateLoanToRealtime(loan, player.id, now))
+    properties: (player.properties || []).map(prop => migratePropertyToRealtime(prop, player.cityId || defaultCity.id)),
+    loans: (player.loans || []).map(loan => migrateLoanToRealtime(loan, player.id, now))
   };
 }
 
@@ -56,6 +60,10 @@ export function migrateLoanToRealtime(loan: Loan, playerId: string, now: number)
  * Мигрирует состояние рынка в новый формат
  */
 export function migrateMarketToRealtime(market: MarketState, cityId: string): MarketState {
+  if (!market) {
+    throw new Error('Market is required for migration');
+  }
+  
   const now = Date.now();
   
   return {
@@ -63,7 +71,7 @@ export function migrateMarketToRealtime(market: MarketState, cityId: string): Ma
     cityId: market.cityId || cityId,
     phase: market.phase || market.currentPhase || 'стабильность',
     lastUpdatedAt: market.lastUpdatedAt || now,
-    activeEvents: market.activeEvents.map(event => migrateEventToRealtime(event, cityId))
+    activeEvents: (market.activeEvents || []).map(event => migrateEventToRealtime(event, market.cityId || cityId))
   };
 }
 

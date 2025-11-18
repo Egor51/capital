@@ -31,6 +31,20 @@ function isNetworkError(error: unknown): boolean {
 }
 
 /**
+ * Извлекает данные из ответа сервера
+ * Сервер может возвращать данные как массив с одним элементом или как объект
+ */
+function extractData<T>(response: T | T[]): T {
+  if (Array.isArray(response)) {
+    if (response.length === 0) {
+      throw new Error('Server returned empty array');
+    }
+    return response[0];
+  }
+  return response;
+}
+
+/**
  * Выполняет HTTP запрос с обработкой ошибок
  */
 async function fetchAPI<T>(
@@ -63,7 +77,9 @@ async function fetchAPI<T>(
       throw error;
     }
 
-    return response.json();
+    const data = await response.json();
+    // Извлекаем данные, если ответ пришёл в виде массива
+    return extractData<T>(data);
   } catch (error) {
     // Если это сетевая ошибка или CORS, пробрасываем дальше
     if (isNetworkError(error)) {

@@ -98,18 +98,27 @@ function App() {
           }
 
           if (snapshot) {
+            // Проверяем, что snapshot содержит все необходимые данные
+            if (!snapshot.player || !snapshot.market) {
+              console.error('Снапшот неполный:', snapshot);
+              throw new Error('Загруженное состояние игры неполное');
+            }
+            
             const processedState = syncStateUtils.handleGameEntry(
               testTelegramId,
               snapshot.player,
               snapshot.market,
-              snapshot.events
+              snapshot.events || []
             );
             setPlayer(processedState.player);
             setMarket(processedState.market);
             setEvents(processedState.events);
-            setMarketProperties(snapshot.availableProperties);
-            setMissions(snapshot.missions);
-            setPlayerAchievements(snapshot.achievements);
+            setMarketProperties(snapshot.availableProperties || []);
+            setMissions(snapshot.missions || []);
+            setPlayerAchievements(snapshot.achievements || []);
+          } else {
+            console.warn('Снапшот игрока не загружен, возможно это новый игрок');
+            throw new Error('Не удалось загрузить состояние игры. Попробуйте обновить страницу.');
           }
         } else {
           // Реальная авторизация через Telegram
@@ -147,21 +156,33 @@ function App() {
           }
 
           if (snapshot) {
+            // Проверяем, что snapshot содержит все необходимые данные
+            if (!snapshot.player || !snapshot.market) {
+              console.error('Снапшот неполный:', snapshot);
+              throw new Error('Загруженное состояние игры неполное');
+            }
+            
             const processedState = syncStateUtils.handleGameEntry(
               telegramUser.id,
               snapshot.player,
               snapshot.market,
-              snapshot.events
+              snapshot.events || []
             );
             setPlayer(processedState.player);
             setMarket(processedState.market);
             setEvents(processedState.events);
-            setMarketProperties(snapshot.availableProperties);
-            setMissions(snapshot.missions);
-            setPlayerAchievements(snapshot.achievements);
+            setMarketProperties(snapshot.availableProperties || []);
+            setMissions(snapshot.missions || []);
+            setPlayerAchievements(snapshot.achievements || []);
+          } else {
+            console.warn('Снапшот игрока не загружен, возможно это новый игрок');
+            // Если снапшот не загружен, это может быть новый игрок
+            // В этом случае нужно создать начальное состояние
+            // Но это должно происходить через authenticate, который создаёт игрока
+            throw new Error('Не удалось загрузить состояние игры. Попробуйте обновить страницу.');
           }
-        }
-      } catch (error) {
+      }
+    } catch (error) {
         console.error('Ошибка инициализации игры:', error);
         setToast({
           message: `Ошибка загрузки: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`,
