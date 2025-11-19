@@ -145,7 +145,7 @@ export async function authenticate(request: AuthRequest): Promise<AuthResponse> 
 
   // Проверяем, существует ли игрок
   const existingSnapshot = playersByTelegramId.get(telegramId);
-  
+
   if (existingSnapshot) {
     // Игрок существует - возвращаем его ID
     return simulateResponse({
@@ -380,7 +380,7 @@ function ensurePlayerSnapshot(telegramId: number): ServerSyncState {
   if (existing) {
     return existing;
   }
-  
+
   // Создаём новый снапшот
   const newSnapshot = buildInitialSnapshot(telegramId);
   playersByTelegramId.set(telegramId, newSnapshot);

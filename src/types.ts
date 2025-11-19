@@ -117,6 +117,8 @@ export interface Player {
   // Timestamps для синхронизации
   lastSyncedAt: number;     // Timestamp последней синхронизации с сервером
   createdAt: number;        // Timestamp создания игрока
+  currentMonth: number;     // Текущий игровой месяц (для статистики)
+  totalMonths: number;      // Всего месяцев в игре
 }
 
 export interface GameEvent {
@@ -124,6 +126,7 @@ export interface GameEvent {
   timestamp?: number;        // Timestamp события (опционально для обратной совместимости)
   message: string;
   type: "info" | "success" | "warning" | "error";
+  month?: number;            // Игровой месяц события (опционально)
 }
 
 export interface LoanPreset {
@@ -183,6 +186,7 @@ export interface PropertyRisk {
   };
   resolved: boolean;
   timestamp?: number;         // Timestamp возникновения риска (опционально для обратной совместимости)
+  month?: number;             // Игровой месяц возникновения (опционально)
   actionTaken?: 'fixed' | 'ignored' | 'delayed';
 }
 

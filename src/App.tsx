@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Player, Property, MarketState, GameEvent, PropertyStrategy, PropertyRisk, Mission, Achievement } from './types';
 import { formatMoney, changePropertyStrategy } from './utils/gameLogic';
-import { 
+import { createInitialPlayer } from './utils/initialState';
+import { initializeMarket } from './utils/marketLogic';
+import {
   startRenovationRealtime,
   buyPropertyWithCashRealtime,
   buyPropertyWithMortgageRealtime,
@@ -50,10 +52,10 @@ function App() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [playerAchievements, setPlayerAchievements] = useState<Achievement[]>([]);
-  
+
   useEffect(() => {
     let cancelled = false;
-    
+
     async function bootstrap() {
       setIsBootstrapping(true);
       try {
@@ -96,7 +98,7 @@ function App() {
               priceCoefficients: reference.priceCoefficients,
               marketPhases: reference.marketPhases
             });
-            
+
             // Используем properties из reference как доступные объекты на рынке
             if (reference.properties && reference.properties.length > 0) {
               setMarketProperties(reference.properties);
@@ -114,7 +116,7 @@ function App() {
               });
               throw new Error('Загруженное состояние игры неполное');
             }
-            
+
             console.log('[App] Обработка игрового состояния...');
             const processedState = syncStateUtils.handleGameEntry(
               testTelegramId,
@@ -122,7 +124,7 @@ function App() {
               snapshot.market,
               snapshot.events || []
             );
-            
+
             console.log('[App] Установка состояния игры...');
             console.log('[App] processedState:', {
               hasPlayer: !!processedState.player,
@@ -135,7 +137,7 @@ function App() {
             setMarket(processedState.market);
             setEvents(processedState.events);
             console.log('[App] Состояние установлено через setState');
-            
+
             // Используем availableProperties из snapshot, если есть, иначе из reference
             if (snapshot.availableProperties && snapshot.availableProperties.length > 0) {
               console.log('[App] Установка availableProperties из snapshot:', snapshot.availableProperties.length);
@@ -144,11 +146,11 @@ function App() {
               console.log('[App] Установка properties из reference:', reference.properties.length);
               setMarketProperties(reference.properties);
             }
-            
+
             // Используем миссии и достижения из snapshot, если есть, иначе начальные
             setMissions(snapshot.missions && snapshot.missions.length > 0 ? snapshot.missions : initialMissions);
             setPlayerAchievements(snapshot.achievements && snapshot.achievements.length > 0 ? snapshot.achievements : initialAchievements);
-            
+
             console.log('[App] Состояние игры успешно установлено');
           } else {
             console.warn('[App] Снапшот игрока не загружен, возможно это новый игрок');
@@ -187,7 +189,7 @@ function App() {
               priceCoefficients: reference.priceCoefficients,
               marketPhases: reference.marketPhases
             });
-            
+
             // Используем properties из reference как доступные объекты на рынке
             if (reference.properties && reference.properties.length > 0) {
               setMarketProperties(reference.properties);
@@ -205,7 +207,7 @@ function App() {
               });
               throw new Error('Загруженное состояние игры неполное');
             }
-            
+
             console.log('[App] Обработка игрового состояния (Telegram)...');
             const processedState = syncStateUtils.handleGameEntry(
               telegramUser.id,
@@ -213,7 +215,7 @@ function App() {
               snapshot.market,
               snapshot.events || []
             );
-            
+
             console.log('[App] Установка состояния игры (Telegram)...');
             console.log('[App] processedState (Telegram):', {
               hasPlayer: !!processedState.player,
@@ -226,7 +228,7 @@ function App() {
             setMarket(processedState.market);
             setEvents(processedState.events);
             console.log('[App] Состояние установлено через setState (Telegram)');
-            
+
             // Используем availableProperties из snapshot, если есть, иначе из reference
             if (snapshot.availableProperties && snapshot.availableProperties.length > 0) {
               console.log('[App] Установка availableProperties из snapshot (Telegram):', snapshot.availableProperties.length);
@@ -235,21 +237,44 @@ function App() {
               console.log('[App] Установка properties из reference (Telegram):', reference.properties.length);
               setMarketProperties(reference.properties);
             }
-            
+
             // Используем миссии и достижения из snapshot, если есть, иначе начальные
             setMissions(snapshot.missions && snapshot.missions.length > 0 ? snapshot.missions : initialMissions);
             setPlayerAchievements(snapshot.achievements && snapshot.achievements.length > 0 ? snapshot.achievements : initialAchievements);
-            
+
             console.log('[App] Состояние игры успешно установлено (Telegram)');
           } else {
-            console.warn('[App] Снапшот игрока не загружен, возможно это новый игрок');
-            // Если снапшот не загружен, это может быть новый игрок
-            // В этом случае нужно создать начальное состояние
-            // Но это должно происходить через authenticate, который создаёт игрока
-            throw new Error('Не удалось загрузить состояние игры. Попробуйте обновить страницу.');
+            console.warn('[App] Снапшот игрока не загружен, создаем нового игрока');
+
+            // Создаем начальное состояние для нового игрока
+            const newPlayer = createInitialPlayer(telegramUser.id);
+            const newMarket = initializeMarket(newPlayer.cityId);
+
+            // Инициализируем события
+            const welcomeEvent: GameEvent = {
+              id: `welcome-${Date.now()}`,
+              timestamp: Date.now(),
+              message: `Добро пожаловать! Ваша карьера инвестора начинается.`,
+              type: 'info'
+            };
+
+            setPlayer(newPlayer);
+            setMarket(newMarket);
+            setEvents([welcomeEvent]);
+
+            // Инициализируем миссии и достижения
+            setMissions(initialMissions);
+            setPlayerAchievements(initialAchievements);
+
+            // Устанавливаем доступные свойства из reference
+            if (reference && reference.properties) {
+              setMarketProperties(reference.properties);
+            }
+
+            console.log('[App] Создан новый профиль игрока');
           }
-      }
-    } catch (error) {
+        }
+      } catch (error) {
         console.error('Ошибка инициализации игры:', error);
         setToast({
           message: `Ошибка загрузки: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`,
@@ -278,7 +303,7 @@ function App() {
       cancelled = true;
     };
   }, []);
-  
+
   // Интерактивные модалки
   const [isNegotiationOpen, setIsNegotiationOpen] = useState(false);
   const [negotiationProperty, setNegotiationProperty] = useState<Property | null>(null);
@@ -287,7 +312,7 @@ function App() {
   const [isFlipPriceOpen, setIsFlipPriceOpen] = useState(false);
   const [isMortgageModalOpen, setIsMortgageModalOpen] = useState(false);
   const [mortgageProperty, setMortgageProperty] = useState<Property | null>(null);
-  
+
   // Toast notification
   const [toast, setToast] = useState<{
     message: string;
@@ -337,7 +362,7 @@ function App() {
       },
       30000
     );
-      return stopAutoSync;
+    return stopAutoSync;
   }, [player, market, events, missions, playerAchievements, marketProperties, isBootstrapping, authState.telegramId]);
 
   const marketPropertiesRef = useRef<Property[]>([]);
@@ -368,18 +393,18 @@ function App() {
       }
     },
     onNotification: (event) => {
-            setNotification({
-              id: `notif-${event.id}`,
-              message: event.message,
-              type: event.type,
-              timestamp: Date.now()
-            });
-          }
-        });
+      setNotification({
+        id: `notif-${event.id}`,
+        message: event.message,
+        type: event.type,
+        timestamp: Date.now()
+      });
+    }
+  });
 
   const handleBuyWithCash = useCallback((property: Property) => {
     if (!player) return;
-    
+
     // Открываем модалку торга
     setNegotiationProperty(property);
     setIsNegotiationOpen(true);
@@ -387,7 +412,7 @@ function App() {
 
   const handleBuyWithMortgageClick = useCallback((property: Property) => {
     if (!player) return;
-    
+
     setIsMortgageModalOpen(true);
     setMortgageProperty(property);
   }, [player]);
@@ -399,11 +424,11 @@ function App() {
     if (result.success) {
       setPlayer(result.player);
       setMarketProperties(prev => prev.filter(p => p.id !== mortgageProperty.id));
-      
+
       // Обновляем миссии после покупки
       const updatedMissions = updateMissions(missions, result.player);
       setMissions(updatedMissions);
-      
+
       // Добавляем событие
       const newEvents = [...events, {
         id: `buy-mortgage-${Date.now()}`,
@@ -446,7 +471,7 @@ function App() {
         timestamp: Date.now()
       });
     }
-    
+
     setIsMortgageModalOpen(false);
     setMortgageProperty(null);
   }, [player, mortgageProperty, missions, authState.telegramId, market, events, playerAchievements, marketProperties]);
@@ -455,7 +480,7 @@ function App() {
     if (!player || !negotiationProperty || !authState.telegramId) return;
 
     const negotiation = negotiatePurchase(negotiationProperty, price, player.difficulty);
-    
+
     if (negotiation.success) {
       // Покупаем по согласованной цене
       const propertyWithNewPrice = {
@@ -463,16 +488,16 @@ function App() {
         purchasePrice: negotiation.finalPrice,
         currentValue: negotiation.finalPrice
       };
-      
+
       const result = buyPropertyWithCashRealtime(player, propertyWithNewPrice);
       if (result.success) {
         setPlayer(result.player);
         setMarketProperties(prev => prev.filter(p => p.id !== negotiationProperty.id));
-        
+
         // Обновляем миссии после покупки
         const updatedMissions = updateMissions(missions, result.player);
         setMissions(updatedMissions);
-        
+
         const newEvents = [...events, {
           id: `buy-${Date.now()}`,
           timestamp: Date.now(),
@@ -508,7 +533,7 @@ function App() {
         type: 'warning'
       }]);
     }
-    
+
     setIsNegotiationOpen(false);
     setNegotiationProperty(null);
   }, [player, negotiationProperty, missions, authState.telegramId, market, events, playerAchievements, marketProperties]);
@@ -525,7 +550,7 @@ function App() {
     } else {
       const updatedPlayer = changePropertyStrategyRealtime(player, property, strategy);
       setPlayer(updatedPlayer);
-      
+
       const newEvents = [...events, {
         id: `strategy-${Date.now()}`,
         timestamp: Date.now(),
@@ -553,13 +578,13 @@ function App() {
     const newPlayer = changePropertyStrategy(player, selectedProperty, 'flip', price);
     setPlayer(newPlayer);
     setIsFlipPriceOpen(false);
-    
+
     // Обновляем выбранное свойство из нового списка
     const updatedProperty = newPlayer.properties.find(p => p.id === selectedProperty.id);
     if (updatedProperty) {
       setSelectedProperty(updatedProperty);
     }
-    
+
     const newEvents = [...events, {
       id: `flip-${Date.now()}`,
       timestamp: Date.now(),
@@ -590,20 +615,20 @@ function App() {
 
   const handleRenovation = useCallback((property: Property, type: "косметика" | "капремонт") => {
     if (!player || !authState.telegramId) return;
-    
+
     // Устанавливаем выбранное свойство для обработки
     setSelectedProperty(property);
 
     const result = startRenovationRealtime(player, property, type);
     if (result.success) {
       setPlayer(result.player);
-      
+
       // Обновляем выбранное свойство из нового списка
       const updatedProperty = result.player.properties.find(p => p.id === property.id);
       if (updatedProperty) {
         setSelectedProperty(updatedProperty);
       }
-      
+
       // Обновляем миссии и достижения после ремонта
       const updatedMissions = updateMissions(missions, result.player);
       const updatedAchievements = checkAchievements(
@@ -616,10 +641,10 @@ function App() {
       );
       setMissions(updatedMissions);
       setPlayerAchievements(updatedAchievements);
-      
+
       const renovationName = type === 'косметика' ? 'Косметический ремонт' : 'Капитальный ремонт';
       const successMessage = `🔨 ${renovationName} начат на ${property.name}`;
-      
+
       const newEvents = [...events, {
         id: `renovation-${Date.now()}`,
         timestamp: Date.now(),
@@ -638,7 +663,7 @@ function App() {
           console.error('[App] Ошибка сохранения после начала ремонта:', error);
         });
       }
-      
+
       // Показываем toast уведомление
       setToast({
         message: successMessage,
@@ -660,7 +685,7 @@ function App() {
         type: 'error',
         isVisible: true
       });
-      
+
       setEvents(prev => [...prev, {
         id: `error-${Date.now()}`,
         timestamp: Date.now(),
@@ -672,20 +697,20 @@ function App() {
 
   const handleTakeLoan = useCallback((property: Property) => {
     if (!player || !authState.telegramId) return;
-    
+
     // Устанавливаем выбранное свойство для обработки
     setSelectedProperty(property);
 
     const result = takeLoanAgainstPropertyRealtime(player, property);
     if (result.success) {
       setPlayer(result.player);
-      
+
       // Обновляем выбранное свойство из нового списка
       const updatedProperty = result.player.properties.find(p => p.id === property.id);
       if (updatedProperty) {
         setSelectedProperty(updatedProperty);
       }
-      
+
       const newEvents = [...events, {
         id: `loan-${Date.now()}`,
         timestamp: Date.now(),
@@ -735,7 +760,7 @@ function App() {
       </div>
     );
   }
-  
+
   console.log('[App] Рендер разрешён, отображаем игру:', {
     hasPlayer: !!player,
     hasMarket: !!market,
@@ -890,12 +915,12 @@ function App() {
               properties: player.properties.map(p =>
                 p.id === selectedProperty.id
                   ? {
-                      ...p,
-                      currentValue: Math.max(
-                        p.currentValue + (activeRisk.impact.valueChange || 0) * 0.5,
-                        p.purchasePrice * 0.7
-                      )
-                    }
+                    ...p,
+                    currentValue: Math.max(
+                      p.currentValue + (activeRisk.impact.valueChange || 0) * 0.5,
+                      p.purchasePrice * 0.7
+                    )
+                  }
                   : p
               )
             });
