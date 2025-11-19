@@ -58,19 +58,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
     <div className="dashboard">
       {/* Header Card */}
       <Card className="dashboard__user-info">
-        
-       
-          <div className="dashboard__user-avatar">
-            {getAvatar(player.name)}
-          </div>
-          <div className="dashboard__user-details">
-            <div className="dashboard__user-name">{player.telegramId}</div>
-            <div className="dashboard__user-rating">
-              <span className="dashboard__rating-label">Рейтинг:</span>
-              <span className="dashboard__rating-value">{rating.toLocaleString('ru-RU')}</span>
-            </div>
+
+
+        <div className="dashboard__user-avatar">
+          {getAvatar(player.name)}
         </div>
-      
+        <div className="dashboard__user-details">
+          <div className="dashboard__user-name">{player.telegramId}</div>
+          <div className="dashboard__user-rating">
+            <span className="dashboard__rating-label">Рейтинг:</span>
+            <span className="dashboard__rating-value">{rating.toLocaleString('ru-RU')}</span>
+          </div>
+        </div>
+
       </Card>
 
       {/* Financial Status Card - Crypto Exchange Style */}
@@ -81,7 +81,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {netCashFlow >= 0 ? '▲' : '▼'}
           </div>
         </div>
-        
+
         {/* Главная метрика - как цена на бирже */}
         <div className="dashboard__finance-main-price">
           <div className="dashboard__finance-price-label">Общий баланс</div>
@@ -98,30 +98,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {formatMoney(player.cash)}
             </div>
           </div>
-          
+
           <div className="dashboard__finance-row">
             <div className="dashboard__finance-cell dashboard__finance-cell--label">Активы</div>
             <div className="dashboard__finance-cell dashboard__finance-cell--value dashboard__finance-cell--value-up">
               {formatMoney(totalPropertyValue)}
             </div>
           </div>
-          
+
           <div className="dashboard__finance-row">
             <div className="dashboard__finance-cell dashboard__finance-cell--label">Долги</div>
             <div className={`dashboard__finance-cell dashboard__finance-cell--value ${totalDebt > 0 ? 'dashboard__finance-cell--value-down' : 'dashboard__finance-cell--value-neutral'}`}>
               {formatMoney(totalDebt)}
             </div>
           </div>
-          
+
           {/* <div className="dashboard__finance-row dashboard__finance-row--divider"></div> */}
-          
+
           <div className="dashboard__finance-row">
             <div className="dashboard__finance-cell dashboard__finance-cell--label">Доход/мес</div>
             <div className={`dashboard__finance-cell dashboard__finance-cell--value ${monthlyIncome >= 0 ? 'dashboard__finance-cell--value-up' : 'dashboard__finance-cell--value-down'}`}>
               {monthlyIncome >= 0 ? '+' : ''}{formatMoney(monthlyIncome)}
             </div>
           </div>
-          
+
           <div className="dashboard__finance-row">
             <div className="dashboard__finance-cell dashboard__finance-cell--label">Расход/мес</div>
             <div className="dashboard__finance-cell dashboard__finance-cell--value dashboard__finance-cell--value-down">
@@ -143,7 +143,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         ) : (
           <div className="dashboard__properties-list">
             {properties.map(property => {
-              const propertyLoan = property.mortgageId ? loans.find(l => l.id === property.mortgageId) : undefined;
+              const propertyLoan = property.loanId ? loans.find(l => l.id === property.loanId) : undefined;
               return (
                 <PropertyCard
                   key={property.id}
@@ -174,8 +174,8 @@ interface PropertyCardProps {
   onTakeLoan?: () => void;
 }
 
-const PropertyCard: React.FC<PropertyCardProps> = ({ 
-  property, 
+const PropertyCard: React.FC<PropertyCardProps> = ({
+  property,
   loan,
   isExpanded,
   onToggle,
@@ -266,8 +266,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 
     return (
       <div className="renovation-progress">
-        <ProgressBar 
-          value={progress} 
+        <ProgressBar
+          value={progress}
           variant="warning"
           showValue={true}
         />
@@ -279,7 +279,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   };
 
   return (
-    <Card 
+    <Card
       className={`property-card ${isExpanded ? 'property-card--expanded' : ''}`}
       onClick={onToggle}
     >
@@ -329,7 +329,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       {/* Раскрываемая часть */}
       <div className={`property-card__expandable ${isExpanded ? 'property-card__expandable--visible' : ''}`}>
         {/* Изображение */}
-        <div 
+        <div
           className="property-card__image"
           style={{ background: getPropertyImage(property.type, property.condition) }}
           onClick={(e) => e.stopPropagation()}
@@ -376,7 +376,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
               <div className="property-card__renovation-progress-label">
                 🔨 Ремонт в процессе
               </div>
-              <RenovationProgress 
+              <RenovationProgress
                 startsAt={property.renovationStartsAt}
                 endsAt={property.renovationEndsAt}
               />

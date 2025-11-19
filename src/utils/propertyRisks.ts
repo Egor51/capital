@@ -2,9 +2,9 @@ import { Property, PropertyRisk, PropertyRiskType } from '../types';
 
 const riskChance = 0.05; // 5% вероятность события каждый месяц
 
-export function checkPropertyRisks(property: Property, timestampOrMonth: number): PropertyRisk | null {
+export function checkPropertyRisks(property: Property): PropertyRisk | null {
   // Не проверяем риски для объектов на продаже или в ремонте
-  if (property.isForSale || property.isUnderRenovation) {
+  if (property.strategy === 'flip' || property.isUnderRenovation) {
     return null;
   }
 
@@ -22,54 +22,54 @@ export function checkPropertyRisks(property: Property, timestampOrMonth: number)
     condition?: Property['condition'];
     strategy?: Property['strategy'];
   }> = [
-    {
-      type: 'leak',
-      name: 'Протечка в квартире',
-      description: 'Обнаружена протечка. Требуется срочный ремонт',
-      cost: property.purchasePrice * 0.03,
-      impact: {
-        requiresRenovation: true,
-        valueChange: -property.currentValue * 0.05
+      {
+        type: 'leak',
+        name: 'Протечка в квартире',
+        description: 'Обнаружена протечка. Требуется срочный ремонт',
+        cost: property.purchasePrice * 0.03,
+        impact: {
+          requiresRenovation: true,
+          valueChange: -property.currentValue * 0.05
+        },
+        condition: 'нормальная'
       },
-      condition: 'нормальная'
-    },
-    {
-      type: 'tenant_left',
-      name: 'Арендатор съехал',
-      description: 'Арендатор внезапно съехал. Потерян доход на 2 периода',
-      cost: 0,
-      impact: {
-        rentPeriodsWithoutIncome: 2
+      {
+        type: 'tenant_left',
+        name: 'Арендатор съехал',
+        description: 'Арендатор внезапно съехал. Потерян доход на 2 периода',
+        cost: 0,
+        impact: {
+          rentPeriodsWithoutIncome: 2
+        },
+        strategy: 'rent'
       },
-      strategy: 'rent'
-    },
-    {
-      type: 'utility_breakdown',
-      name: 'Поломка коммуникаций',
-      description: 'Сломались коммуникации. Требуется ремонт',
-      cost: property.purchasePrice * 0.02,
-      impact: {
-        valueChange: -property.currentValue * 0.03
+      {
+        type: 'utility_breakdown',
+        name: 'Поломка коммуникаций',
+        description: 'Сломались коммуникации. Требуется ремонт',
+        cost: property.purchasePrice * 0.02,
+        impact: {
+          valueChange: -property.currentValue * 0.03
+        }
+      },
+      {
+        type: 'flooding',
+        name: 'Затопили соседи',
+        description: 'Соседи сверху затопили квартиру. Нужен ремонт',
+        cost: property.purchasePrice * 0.04,
+        impact: {
+          requiresRenovation: true,
+          valueChange: -property.currentValue * 0.08
+        }
+      },
+      {
+        type: 'tax_audit',
+        name: 'Проверка налоговой',
+        description: 'Налоговая проверила продажу. Штраф за некорректное оформление',
+        cost: property.purchasePrice * 0.05,
+        impact: {}
       }
-    },
-    {
-      type: 'flooding',
-      name: 'Затопили соседи',
-      description: 'Соседи сверху затопили квартиру. Нужен ремонт',
-      cost: property.purchasePrice * 0.04,
-      impact: {
-        requiresRenovation: true,
-        valueChange: -property.currentValue * 0.08
-      }
-    },
-    {
-      type: 'tax_audit',
-      name: 'Проверка налоговой',
-      description: 'Налоговая проверила продажу. Штраф за некорректное оформление',
-      cost: property.purchasePrice * 0.05,
-      impact: {}
-    }
-  ];
+    ];
 
   // Фильтруем подходящие риски
   const availableRisks = risks.filter(risk => {
@@ -95,8 +95,7 @@ export function checkPropertyRisks(property: Property, timestampOrMonth: number)
     cost: Math.round(selectedRisk.cost),
     impact: selectedRisk.impact,
     resolved: false,
-    timestamp: now,
-    month: timestampOrMonth < 1000000000000 ? timestampOrMonth : undefined // Если это timestamp, не сохраняем month
+    timestamp: now
   };
 }
 

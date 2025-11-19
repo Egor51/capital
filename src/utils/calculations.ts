@@ -11,10 +11,10 @@ export function calculateAnnuityPayment(
   if (termMonths === 0) return 0;
   const monthlyRate = annualRate / 100 / 12;
   if (monthlyRate === 0) return principal / termMonths;
-  
+
   const payment = principal * (monthlyRate * Math.pow(1 + monthlyRate, termMonths)) /
     (Math.pow(1 + monthlyRate, termMonths) - 1);
-  
+
   return Math.round(payment);
 }
 
@@ -48,9 +48,7 @@ export function calculateRentIncome(
 
   // Применяем влияние активных событий
   market.activeEvents.forEach(event => {
-    const modifier = event.rentIndexModifier !== undefined 
-      ? event.rentIndexModifier 
-      : (event.rentImpactPercent || 0);
+    const modifier = event.rentIndexModifier || 0;
     rent *= (1 + modifier / 100);
   });
 
@@ -103,9 +101,7 @@ export function calculateMonthlyIncome(
       const baseRent = prop.baseRent || 0;
       let rent = baseRent * market.rentIndex;
       market.activeEvents.forEach(event => {
-        const modifier = event.rentIndexModifier !== undefined 
-          ? event.rentIndexModifier 
-          : (event.rentImpactPercent || 0);
+        const modifier = event.rentIndexModifier || 0;
         rent *= (1 + modifier / 100);
       });
       // Учитываем вероятность вакансии (ожидаемое значение)
@@ -131,16 +127,14 @@ export function updatePropertyValue(
   let newValue = property.currentValue;
 
   // Базовое изменение в зависимости от фазы рынка
-  const phaseMultiplier = market.currentPhase === "рост" ? 1.01 :
-                         market.currentPhase === "кризис" ? 0.98 : 1.0;
-  
+  const phaseMultiplier = market.phase === "рост" ? 1.01 :
+    market.phase === "кризис" ? 0.98 : 1.0;
+
   newValue *= phaseMultiplier;
 
   // Применяем влияние активных событий
   market.activeEvents.forEach(event => {
-    const modifier = event.priceIndexModifier !== undefined 
-      ? event.priceIndexModifier 
-      : (event.priceImpactPercent || 0);
+    const modifier = event.priceIndexModifier || 0;
     newValue *= (1 + modifier / 100);
   });
 

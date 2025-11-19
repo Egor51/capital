@@ -9,10 +9,10 @@ export function migratePlayerToRealtime(player: Player): Player {
   if (!player) {
     throw new Error('Player is required for migration');
   }
-  
+
   const now = Date.now();
   const defaultCity = getDefaultCity();
-  
+
   return {
     ...player,
     cityId: player.cityId || defaultCity.id,
@@ -28,7 +28,7 @@ export function migratePlayerToRealtime(player: Player): Player {
  */
 export function migratePropertyToRealtime(property: Property, cityId: string): Property {
   const now = Date.now();
-  
+
   return {
     ...property,
     cityId: property.cityId || cityId,
@@ -37,9 +37,9 @@ export function migratePropertyToRealtime(property: Property, cityId: string): P
     nextRentAt: property.nextRentAt || (property.strategy === 'rent' ? now + DEFAULT_TIMERS.rentIntervalMs : null),
     isUnderRenovation: property.isUnderRenovation || false,
     renovationEndsAt: property.renovationEndsAt || null,
-    loanId: property.loanId || property.mortgageId,
+    loanId: property.loanId || (property as any).mortgageId,
     strategy: property.strategy === null ? 'none' : property.strategy,
-    salePrice: property.salePrice || (property.isForSale ? property.currentValue : undefined)
+    salePrice: property.salePrice || ((property as any).isForSale ? property.currentValue : undefined)
   };
 }
 
@@ -50,7 +50,7 @@ export function migrateLoanToRealtime(loan: Loan, playerId: string, now: number)
   return {
     ...loan,
     playerId: loan.playerId || playerId,
-    annualRate: loan.annualRate || loan.interestRate || 12.5,
+    annualRate: loan.annualRate || (loan as any).interestRate || 12.5,
     paymentIntervalMs: loan.paymentIntervalMs || DEFAULT_TIMERS.loanPaymentIntervalMs,
     nextPaymentAt: loan.nextPaymentAt || now + DEFAULT_TIMERS.loanPaymentIntervalMs
   };
@@ -63,13 +63,13 @@ export function migrateMarketToRealtime(market: MarketState, cityId: string): Ma
   if (!market) {
     throw new Error('Market is required for migration');
   }
-  
+
   const now = Date.now();
-  
+
   return {
     ...market,
     cityId: market.cityId || cityId,
-    phase: market.phase || market.currentPhase || 'стабильность',
+    phase: market.phase || (market as any).currentPhase || 'стабильность',
     lastUpdatedAt: market.lastUpdatedAt || now,
     activeEvents: (market.activeEvents || []).map(event => migrateEventToRealtime(event, market.cityId || cityId))
   };
@@ -80,7 +80,7 @@ export function migrateMarketToRealtime(market: MarketState, cityId: string): Ma
  */
 export function migrateEventToRealtime(event: any, cityId: string): any {
   const now = Date.now();
-  
+
   // Если событие уже в новом формате
   if (event.startsAt && event.endsAt) {
     return {
@@ -91,12 +91,12 @@ export function migrateEventToRealtime(event: any, cityId: string): any {
       vacancyModifier: event.vacancyModifier || event.vacancyImpactPercent || 0
     };
   }
-  
+
   // Миграция из старого формата (месяцы)
   if (event.monthImpactStart !== undefined) {
     const startsAt = now + (event.monthImpactStart * 30 * 24 * 60 * 60 * 1000);
     const endsAt = startsAt + (event.durationMonths * 30 * 24 * 60 * 60 * 1000);
-    
+
     return {
       ...event,
       cityId: event.cityId || cityId,
@@ -107,7 +107,7 @@ export function migrateEventToRealtime(event: any, cityId: string): any {
       vacancyModifier: event.vacancyModifier || event.vacancyImpactPercent || 0
     };
   }
-  
+
   return event;
 }
 
@@ -116,10 +116,10 @@ export function migrateEventToRealtime(event: any, cityId: string): any {
  */
 export function migrateGameEventToRealtime(event: GameEvent): GameEvent {
   const now = Date.now();
-  
+
   return {
     ...event,
-    timestamp: event.timestamp || (event.month ? now - (event.month * 30 * 24 * 60 * 60 * 1000) : now)
+    timestamp: event.timestamp || ((event as any).month ? now - ((event as any).month * 30 * 24 * 60 * 60 * 1000) : now)
   };
 }
 

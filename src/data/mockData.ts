@@ -103,13 +103,7 @@ export const mockMarketEvents: MarketEvent[] = [
     endsAt: now + (6 * ONE_MINUTE),   // Длится 4 минуты
     priceIndexModifier: 0,
     rentIndexModifier: 15,
-    vacancyModifier: -10,
-    // Устаревшие поля для обратной совместимости
-    monthImpactStart: 2,
-    durationMonths: 4,
-    priceImpactPercent: 0,
-    rentImpactPercent: 15,
-    vacancyImpactPercent: -10
+    vacancyModifier: -10
   },
   {
     id: "e2",
@@ -120,12 +114,7 @@ export const mockMarketEvents: MarketEvent[] = [
     endsAt: now + (14 * ONE_MINUTE),
     priceIndexModifier: -10,
     rentIndexModifier: -5,
-    vacancyModifier: 10,
-    monthImpactStart: 8,
-    durationMonths: 6,
-    priceImpactPercent: -10,
-    rentImpactPercent: -5,
-    vacancyImpactPercent: 10
+    vacancyModifier: 10
   },
   {
     id: "e3",
@@ -136,12 +125,7 @@ export const mockMarketEvents: MarketEvent[] = [
     endsAt: now + (20 * ONE_MINUTE),
     priceIndexModifier: 5,
     rentIndexModifier: 5,
-    vacancyModifier: -5,
-    monthImpactStart: 12,
-    durationMonths: 8,
-    priceImpactPercent: 5,
-    rentImpactPercent: 5,
-    vacancyImpactPercent: -5
+    vacancyModifier: -5
   }
 ];
 

@@ -39,18 +39,14 @@ export interface Property {
   strategy: PropertyStrategy;
   monthlyExpenses: number;
   loanId?: string;             // ID кредита (ипотека или залог)
-  
+
   // Таймеры реального времени
   rentIntervalMs: number;     // Интервал начисления аренды
   nextRentAt: number | null;   // Timestamp следующего начисления аренды
   isUnderRenovation: boolean;
   renovationStartsAt?: number | null; // Timestamp начала ремонта (для прогресса)
   renovationEndsAt: number | null; // Timestamp завершения ремонта
-  
-  // Устаревшие поля (для обратной совместимости)
-  mortgageId?: string;         // Deprecated, используйте loanId
-  monthsOwned?: number;        // Deprecated, используйте timestamps
-  isForSale?: boolean;         // Deprecated, используйте strategy === "flip"
+
   salePrice?: number;          // Цена, по которой выставлен на продажу (для flip)
 }
 
@@ -63,14 +59,10 @@ export interface Loan {
   annualRate: number;         // Годовая процентная ставка
   monthlyPayment: number;      // Ежемесячный платёж
   type: LoanType;
-  
+
   // Таймеры реального времени
   paymentIntervalMs: number;  // Интервал платежей (по умолчанию 1 минута = 60000)
   nextPaymentAt: number;      // Timestamp следующего платежа
-  
-  // Устаревшие поля (для обратной совместимости)
-  interestRate?: number;      // Deprecated, используйте annualRate
-  remainingTermMonths?: number; // Deprecated, рассчитывается автоматически
 }
 
 export interface MarketEvent {
@@ -78,22 +70,15 @@ export interface MarketEvent {
   cityId: string;             // ID города
   name: string;
   description: string;
-  
+
   // Реальное время вместо месяцев
   startsAt: number;         // Timestamp начала события
   endsAt: number;            // Timestamp окончания события
-  
+
   // Модификаторы (в процентах)
   priceIndexModifier: number;    // Изменение индекса цен (%)
   rentIndexModifier: number;     // Изменение индекса аренды (%)
   vacancyModifier: number;        // Изменение простоя (%)
-  
-  // Устаревшие поля (для обратной совместимости)
-  monthImpactStart?: number;      // Deprecated
-  durationMonths?: number;        // Deprecated
-  priceImpactPercent?: number;    // Deprecated, используйте priceIndexModifier
-  rentImpactPercent?: number;      // Deprecated, используйте rentIndexModifier
-  vacancyImpactPercent?: number;   // Deprecated, используйте vacancyModifier
 }
 
 export interface MarketState {
@@ -104,9 +89,6 @@ export interface MarketState {
   vacancyRate: number;       // Вероятность простоя (0.02—0.15)
   activeEvents: MarketEvent[];
   lastUpdatedAt: number;     // Timestamp последнего обновления
-  
-  // Устаревшие поля (для обратной совместимости)
-  currentPhase?: MarketPhase; // Deprecated, используйте phase
 }
 
 export interface Player {
@@ -121,7 +103,7 @@ export interface Player {
   properties: Property[];
   cityId: string;           // Текущий город
   difficulty: Difficulty;
-  
+
   // Новая система геймификации
   experience: number;
   level: number;
@@ -131,14 +113,10 @@ export interface Player {
     totalRenovations: number;
     propertiesOwned: number;
   };
-  
+
   // Timestamps для синхронизации
   lastSyncedAt: number;     // Timestamp последней синхронизации с сервером
   createdAt: number;        // Timestamp создания игрока
-  
-  // Устаревшие поля (для обратной совместимости)
-  currentMonth?: number;    // Deprecated, используйте timestamps
-  totalMonths?: number;      // Deprecated
 }
 
 export interface GameEvent {
@@ -146,9 +124,6 @@ export interface GameEvent {
   timestamp?: number;        // Timestamp события (опционально для обратной совместимости)
   message: string;
   type: "info" | "success" | "warning" | "error";
-  
-  // Устаревшие поля (для обратной совместимости)
-  month?: number;            // Deprecated, используйте timestamp
 }
 
 export interface LoanPreset {
@@ -209,10 +184,6 @@ export interface PropertyRisk {
   resolved: boolean;
   timestamp?: number;         // Timestamp возникновения риска (опционально для обратной совместимости)
   actionTaken?: 'fixed' | 'ignored' | 'delayed';
-  
-  // Устаревшие поля (для обратной совместимости)
-  month?: number;           // Deprecated, используйте timestamp
-  monthsWithoutRent?: number; // Deprecated, используйте rentPeriodsWithoutIncome
 }
 
 // Торг при покупке
@@ -223,12 +194,12 @@ export interface NegotiationResult {
 }
 
 // Расширенные рыночные события
-export type ExtendedMarketEventType = 
-  | 'key_rate_change' 
-  | 'new_construction' 
-  | 'port_expansion' 
-  | 'anomalous_winter' 
-  | 'rental_law' 
+export type ExtendedMarketEventType =
+  | 'key_rate_change'
+  | 'new_construction'
+  | 'port_expansion'
+  | 'anomalous_winter'
+  | 'rental_law'
   | 'repair_peak'
   | 'tourist_season'
   | 'crisis'

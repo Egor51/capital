@@ -167,7 +167,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
             )}
           </div>
         )}
-        
+
         {/* Current Strategy Display */}
         {property.strategy && (
           <div className="property-detail__section">
@@ -176,8 +176,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
               <strong>
                 {property.strategy === 'hold' && '📦 Держать'}
                 {property.strategy === 'rent' && '🏠 Сдавать в аренду'}
-                {property.strategy === 'flip' && property.isForSale && `🔄 Перепродажа (${formatMoney(property.salePrice || property.currentValue)})`}
-                {property.strategy === 'flip' && !property.isForSale && '🔄 Перепродажа'}
+                {property.strategy === 'flip' && `🔄 Перепродажа (${formatMoney(property.salePrice || property.currentValue)})`}
               </strong>
             </div>
           </div>

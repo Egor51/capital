@@ -15,13 +15,12 @@ export function changePropertyStrategy(
     properties: player.properties.map(currentProperty =>
       currentProperty.id === property.id
         ? {
-            ...currentProperty,
-            strategy,
-            isForSale: strategy === 'flip',
-            salePrice: strategy === 'flip'
-              ? salePrice ?? currentProperty.currentValue
-              : undefined
-          }
+          ...currentProperty,
+          strategy,
+          salePrice: strategy === 'flip'
+            ? salePrice ?? currentProperty.currentValue
+            : undefined
+        }
         : currentProperty
     )
   };

@@ -16,7 +16,7 @@ export function initializeMarket(cityId: string = 'murmansk'): MarketState {
     activeEvents: [],
     lastUpdatedAt: now,
     // Устаревшие поля для обратной совместимости
-    currentPhase: "стабильность"
+
   };
 }
 
@@ -44,7 +44,7 @@ export function updateMarketIndexes(
   let { priceIndex, rentIndex, vacancyRate } = market;
 
   // Обновление индексов в зависимости от фазы
-  switch (market.currentPhase) {
+  switch (market.phase) {
     case "рост":
       priceIndex = Math.min(priceIndex * 1.005, 1.3); // Медленный рост до 130%
       rentIndex = Math.min(rentIndex * 1.003, 1.2);
@@ -74,8 +74,7 @@ export function updateMarketIndexes(
  * Проверяет и активирует рыночные события (реальное время)
  */
 export function checkAndActivateEvents(
-  market: MarketState,
-  monthOrTimestamp: number
+  market: MarketState
 ): MarketState {
   const now = Date.now();
   const activeEvents = [...market.activeEvents];
@@ -84,11 +83,6 @@ export function checkAndActivateEvents(
   const stillActive = activeEvents.filter(event => {
     if (event.endsAt) {
       return now < event.endsAt;
-    }
-    // Обратная совместимость: если есть monthImpactStart, используем старую логику
-    if (event.monthImpactStart !== undefined && event.durationMonths !== undefined) {
-      const endMonth = event.monthImpactStart + event.durationMonths;
-      return monthOrTimestamp < endMonth;
     }
     return true;
   });
@@ -100,13 +94,6 @@ export function checkAndActivateEvents(
       if (!stillActive.find(e => e.id === event.id)) {
         stillActive.push(event);
       }
-    } else if (event.monthImpactStart !== undefined) {
-      // Обратная совместимость
-      if (monthOrTimestamp === event.monthImpactStart) {
-        if (!stillActive.find(e => e.id === event.id)) {
-          stillActive.push(event);
-        }
-      }
     }
   });
 
@@ -115,13 +102,6 @@ export function checkAndActivateEvents(
     if (event.startsAt && now >= event.startsAt && now < event.endsAt) {
       if (!stillActive.find(e => e.id === event.id)) {
         stillActive.push(event);
-      }
-    } else if (event.monthImpactStart !== undefined) {
-      // Обратная совместимость
-      if (monthOrTimestamp === event.monthImpactStart) {
-        if (!stillActive.find(e => e.id === event.id)) {
-          stillActive.push(event);
-        }
       }
     }
   });

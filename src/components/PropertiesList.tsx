@@ -32,8 +32,8 @@ export const PropertiesList: React.FC<PropertiesListProps> = ({
       <h2 style={styles.title}>Ваши объекты недвижимости</h2>
       <div style={styles.list}>
         {properties.map(property => {
-          const loan = property.mortgageId
-            ? loans.find(l => l.id === property.mortgageId)
+          const loan = property.loanId
+            ? loans.find(l => l.id === property.loanId)
             : null;
           const isExpanded = expandedProperty === property.id;
 
@@ -138,7 +138,7 @@ export const PropertiesList: React.FC<PropertiesListProps> = ({
                       </div>
                     </div>
 
-                    {!property.mortgageId && (
+                    {!property.loanId && (
                       <div style={styles.actionGroup}>
                         <button
                           style={styles.button}

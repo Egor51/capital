@@ -36,12 +36,12 @@ export function processOfflinePeriod(
   const events: GameEvent[] = [];
   let updatedPlayer = { ...player };
   let updatedMarket = { ...market };
-  
+
   // Обрабатываем аренду для всех объектов
   updatedPlayer.properties = updatedPlayer.properties.map(prop => {
     if (prop.strategy === 'rent' && !prop.isUnderRenovation && prop.nextRentAt) {
       const periods = Math.floor((now - prop.nextRentAt) / prop.rentIntervalMs) + 1;
-      
+
       if (periods > 0) {
         // Рассчитываем аренду за пропущенные периоды
         let totalRent = 0;
@@ -49,12 +49,12 @@ export function processOfflinePeriod(
           const rent = calculateRentForPeriod(prop, updatedMarket);
           totalRent += rent;
         }
-        
+
         if (totalRent > 0) {
           updatedPlayer.cash += totalRent;
           updatedPlayer.stats.totalRentIncome += totalRent;
           updatedPlayer.experience += Math.floor(totalRent / 1000);
-          
+
           events.push({
             id: `rent-offline-${Date.now()}-${prop.id}`,
             timestamp: now,
@@ -62,30 +62,30 @@ export function processOfflinePeriod(
             type: 'success'
           });
         }
-        
+
         // Обновляем следующий период аренды
         prop.nextRentAt = prop.nextRentAt + (periods * prop.rentIntervalMs);
       }
     }
-    
+
     return prop;
   });
-  
+
   // Обрабатываем кредитные платежи
   updatedPlayer.loans = updatedPlayer.loans.map(loan => {
     if (now >= loan.nextPaymentAt) {
       const periods = Math.floor((now - loan.nextPaymentAt) / loan.paymentIntervalMs) + 1;
-      
+
       for (let i = 0; i < periods; i++) {
         if (loan.remainingPrincipal > 0) {
           // Списываем платеж
           updatedPlayer.cash -= loan.monthlyPayment;
-          
+
           // Рассчитываем процент и тело кредита
           const interest = loan.remainingPrincipal * (loan.annualRate / 100 / 12);
           const principalPayment = loan.monthlyPayment - interest;
           loan.remainingPrincipal = Math.max(0, loan.remainingPrincipal - principalPayment);
-          
+
           events.push({
             id: `loan-payment-offline-${Date.now()}-${loan.id}`,
             timestamp: now,
@@ -94,14 +94,14 @@ export function processOfflinePeriod(
           });
         }
       }
-      
+
       // Обновляем следующий платеж
       loan.nextPaymentAt = loan.nextPaymentAt + (periods * loan.paymentIntervalMs);
     }
-    
+
     return loan;
   });
-  
+
   // Удаляем погашенные кредиты
   const paidOffLoans = updatedPlayer.loans.filter(loan => loan.remainingPrincipal <= 0);
   if (paidOffLoans.length > 0) {
@@ -115,7 +115,7 @@ export function processOfflinePeriod(
     });
   }
   updatedPlayer.loans = updatedPlayer.loans.filter(loan => loan.remainingPrincipal > 0);
-  
+
   // Обрабатываем завершение ремонта
   updatedPlayer.properties = updatedPlayer.properties.map(prop => {
     if (prop.isUnderRenovation && prop.renovationEndsAt && now >= prop.renovationEndsAt) {
@@ -123,7 +123,7 @@ export function processOfflinePeriod(
       prop.isUnderRenovation = false;
       prop.renovationEndsAt = null;
       prop.condition = upgradeCondition(prop.condition);
-      
+
       events.push({
         id: `renovation-complete-offline-${Date.now()}-${prop.id}`,
         timestamp: now,
@@ -131,10 +131,10 @@ export function processOfflinePeriod(
         type: 'success'
       });
     }
-    
+
     return prop;
   });
-  
+
   // Обновляем стоимость объектов
   updatedPlayer.properties = updatedPlayer.properties.map(prop => {
     const newValue = updatePropertyValue(prop, updatedMarket);
@@ -143,21 +143,21 @@ export function processOfflinePeriod(
       currentValue: newValue
     };
   });
-  
+
   // Обновляем рынок
   updatedMarket = updateMarketIndexes(updatedMarket);
   updatedMarket.lastUpdatedAt = now;
-  
+
   // Обновляем чистый капитал
   updatedPlayer.netWorth = calculateNetWorth(
     updatedPlayer.cash,
     updatedPlayer.properties,
     updatedPlayer.loans
   );
-  
+
   // Обновляем timestamp последней синхронизации
   updatedPlayer.lastSyncedAt = now;
-  
+
   return { player: updatedPlayer, market: updatedMarket, events };
 }
 
@@ -174,7 +174,7 @@ export function processRealtimeTick(
   const events: GameEvent[] = [];
   let updatedPlayer = { ...player };
   let updatedMarket = { ...market };
-  
+
   // 1. Обрабатываем аренду
   updatedPlayer.properties = updatedPlayer.properties.map(prop => {
     if (
@@ -184,12 +184,12 @@ export function processRealtimeTick(
       now >= prop.nextRentAt
     ) {
       const rent = calculateRentForPeriod(prop, updatedMarket);
-      
+
       if (rent > 0) {
         updatedPlayer.cash += rent;
         updatedPlayer.stats.totalRentIncome += rent;
         updatedPlayer.experience += Math.floor(rent / 1000);
-        
+
         events.push({
           id: `rent-${Date.now()}-${prop.id}`,
           timestamp: now,
@@ -204,14 +204,14 @@ export function processRealtimeTick(
           type: 'warning'
         });
       }
-      
+
       // Обновляем следующий период
       prop.nextRentAt = now + prop.rentIntervalMs;
     }
-    
+
     return prop;
   });
-  
+
   // 2. Списываем расходы на содержание (только один раз за период)
   // Проверяем, прошло ли достаточно времени с последнего списания
   const lastExpenseTime = (updatedPlayer as any).lastExpenseTime || 0;
@@ -221,26 +221,26 @@ export function processRealtimeTick(
     });
     (updatedPlayer as any).lastExpenseTime = now;
   }
-  
+
   // 3. Обрабатываем кредитные платежи
   let totalLoanPayments = 0;
   updatedPlayer.loans = updatedPlayer.loans.map(loan => {
     if (now >= loan.nextPaymentAt) {
       updatedPlayer.cash -= loan.monthlyPayment;
       totalLoanPayments += loan.monthlyPayment;
-      
+
       // Рассчитываем процент и тело кредита
       const interest = loan.remainingPrincipal * (loan.annualRate / 100 / 12);
       const principalPayment = loan.monthlyPayment - interest;
       loan.remainingPrincipal = Math.max(0, loan.remainingPrincipal - principalPayment);
-      
+
       // Обновляем следующий платеж
       loan.nextPaymentAt = now + loan.paymentIntervalMs;
     }
-    
+
     return loan;
   });
-  
+
   if (totalLoanPayments > 0) {
     events.push({
       id: `loan-payment-${Date.now()}`,
@@ -249,7 +249,7 @@ export function processRealtimeTick(
       type: 'info'
     });
   }
-  
+
   // Удаляем погашенные кредиты
   const paidOffLoans = updatedPlayer.loans.filter(loan => loan.remainingPrincipal <= 0);
   if (paidOffLoans.length > 0) {
@@ -263,7 +263,7 @@ export function processRealtimeTick(
     });
   }
   updatedPlayer.loans = updatedPlayer.loans.filter(loan => loan.remainingPrincipal > 0);
-  
+
   // 4. Обрабатываем завершение ремонта
   updatedPlayer.properties = updatedPlayer.properties.map(prop => {
     if (prop.isUnderRenovation && prop.renovationEndsAt && now >= prop.renovationEndsAt) {
@@ -271,7 +271,7 @@ export function processRealtimeTick(
       prop.renovationStartsAt = null;
       prop.renovationEndsAt = null;
       prop.condition = upgradeCondition(prop.condition);
-      
+
       events.push({
         id: `renovation-complete-${Date.now()}-${prop.id}`,
         timestamp: now,
@@ -279,30 +279,30 @@ export function processRealtimeTick(
         type: 'success'
       });
     }
-    
+
     return prop;
   });
-  
+
   // 5. Обрабатываем продажи (flip стратегия)
   updatedPlayer.properties = updatedPlayer.properties.filter(prop => {
     if (prop.strategy === 'flip' && prop.salePrice) {
       const marketPrice = updatePropertyValue(prop, updatedMarket);
       const priceRatio = prop.salePrice / marketPrice;
-      
+
       // Вероятность продажи
       let saleChance = 0.3;
       if (priceRatio <= 0.95) saleChance = 0.5;
       else if (priceRatio <= 1.0) saleChance = 0.3;
       else if (priceRatio <= 1.1) saleChance = 0.15;
       else saleChance = 0.05;
-      
+
       if (Math.random() < saleChance) {
         const salePrice = prop.salePrice || prop.currentValue;
         const tax = calculateSaleTax(salePrice, prop.purchasePrice);
         const profit = salePrice - prop.purchasePrice - tax;
-        
+
         updatedPlayer.cash += salePrice - tax;
-        
+
         // Погашаем кредит, если есть
         if (prop.loanId) {
           const loan = updatedPlayer.loans.find(l => l.id === prop.loanId);
@@ -311,23 +311,23 @@ export function processRealtimeTick(
             updatedPlayer.loans = updatedPlayer.loans.filter(l => l.id !== loan.id);
           }
         }
-        
+
         updatedPlayer.stats.totalSales += 1;
         updatedPlayer.experience += 50;
-        
+
         events.push({
           id: `sale-${Date.now()}`,
           timestamp: now,
           message: `Продана ${prop.name} за ${formatMoney(salePrice)}. Прибыль: ${formatMoney(profit)}`,
           type: 'success'
         });
-        
+
         return false; // Удаляем объект
       }
     }
     return true;
   });
-  
+
   // 6. Обновляем стоимость объектов (только один раз за период)
   // Проверяем, прошло ли достаточно времени с последнего обновления
   const lastValueUpdateTime = (updatedPlayer as any).lastValueUpdateTime || 0;
@@ -341,14 +341,13 @@ export function processRealtimeTick(
     });
     (updatedPlayer as any).lastValueUpdateTime = now;
   }
-  
+
   // 7. Обновляем рынок
-  updatedMarket.phase = updateMarketPhase(updatedMarket.phase || updatedMarket.currentPhase || 'стабильность');
-  updatedMarket.currentPhase = updatedMarket.phase; // Для обратной совместимости
+  updatedMarket.phase = updateMarketPhase(updatedMarket.phase || 'стабильность');
   updatedMarket = updateMarketIndexes(updatedMarket);
-  updatedMarket = checkAndActivateEventsRealtime(updatedMarket, now);
+  updatedMarket = checkAndActivateEventsRealtime(updatedMarket);
   updatedMarket.lastUpdatedAt = now;
-  
+
   // 8. Проверяем банкротство
   if (updatedPlayer.cash < 0) {
     events.push({
@@ -358,14 +357,14 @@ export function processRealtimeTick(
       type: 'error'
     });
   }
-  
+
   // 9. Обновляем чистый капитал
   updatedPlayer.netWorth = calculateNetWorth(
     updatedPlayer.cash,
     updatedPlayer.properties,
     updatedPlayer.loans
   );
-  
+
   return { player: updatedPlayer, market: updatedMarket, events };
 }
 
@@ -376,21 +375,21 @@ function calculateRentForPeriod(property: Property, market: MarketState): number
   if (property.strategy !== 'rent' || property.isUnderRenovation) {
     return 0;
   }
-  
+
   // Базовая аренда с учётом рыночного индекса
   let rent = property.baseRent * market.rentIndex;
-  
+
   // Применяем влияние активных событий
   market.activeEvents.forEach(event => {
     rent *= (1 + event.rentIndexModifier / 100);
   });
-  
+
   // Учитываем простой (вакансию)
   const vacancyChance = market.vacancyRate;
   if (Math.random() < vacancyChance) {
     return 0; // Арендатор съехал
   }
-  
+
   // Вычитаем расходы пропорционально периоду
   const expenseRatio = property.rentIntervalMs / (30 * 24 * 60 * 60 * 1000);
   return Math.round(rent - (property.monthlyExpenses * expenseRatio));
@@ -400,10 +399,9 @@ function calculateRentForPeriod(property: Property, market: MarketState): number
  * Проверяет и активирует события в реальном времени
  */
 function checkAndActivateEventsRealtime(
-  market: MarketState,
-  now: number
+  market: MarketState
 ): MarketState {
-  return checkAndActivateEvents(market, now);
+  return checkAndActivateEvents(market);
 }
 
 /**
@@ -550,19 +548,19 @@ export function changePropertyStrategyRealtime(
   salePrice?: number
 ): Player {
   const now = getCurrentTimestamp();
-  
+
   return {
     ...player,
     properties: player.properties.map(p =>
       p.id === property.id
         ? {
-            ...p,
-            strategy,
-            salePrice: strategy === 'flip' ? (salePrice || p.currentValue) : undefined,
-            nextRentAt: strategy === 'rent' && !p.nextRentAt
-              ? now + (p.rentIntervalMs || DEFAULT_TIMERS.rentIntervalMs)
-              : strategy === 'rent' ? p.nextRentAt : null
-          }
+          ...p,
+          strategy,
+          salePrice: strategy === 'flip' ? (salePrice || p.currentValue) : undefined,
+          nextRentAt: strategy === 'rent' && !p.nextRentAt
+            ? now + (p.rentIntervalMs || DEFAULT_TIMERS.rentIntervalMs)
+            : strategy === 'rent' ? p.nextRentAt : null
+        }
         : p
     )
   };
@@ -590,7 +588,7 @@ export function startRenovationRealtime(
   };
 
   const cost = costs[renovationType];
-  const durationMs = renovationType === "косметика" 
+  const durationMs = renovationType === "косметика"
     ? 60 * 1000  // 1 минута для косметики
     : 3 * 60 * 1000; // 3 минуты для капремонта
 
@@ -607,12 +605,12 @@ export function startRenovationRealtime(
   const updatedProperties = player.properties.map(p =>
     p.id === property.id
       ? {
-          ...p,
-          isUnderRenovation: true,
-          renovationStartsAt: now,
-          renovationEndsAt: now + durationMs,
-          currentValue: p.currentValue * (renovationType === "капремонт" ? 1.2 : 1.1)
-        }
+        ...p,
+        isUnderRenovation: true,
+        renovationStartsAt: now,
+        renovationEndsAt: now + durationMs,
+        currentValue: p.currentValue * (renovationType === "капремонт" ? 1.2 : 1.1)
+      }
       : p
   );
 

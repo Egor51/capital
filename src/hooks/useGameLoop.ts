@@ -105,7 +105,7 @@ export function useGameLoop({
       const riskEvents: GameEvent[] = [];
 
       result.player.properties.forEach(prop => {
-        const risk = checkPropertyRisks(prop, Date.now());
+        const risk = checkPropertyRisks(prop);
         if (risk) {
           riskEvents.push({
             id: `risk-${Date.now()}-${prop.id}`,

@@ -18,11 +18,7 @@ export const extendedMarketEvents: ExtendedMarketEvent[] = [
     vacancyModifier: 5,
     eventType: 'key_rate_change',
     mortgageRateChange: 2,
-    monthImpactStart: 6,
-    durationMonths: 12,
-    priceImpactPercent: -3,
-    rentImpactPercent: 0,
-    vacancyImpactPercent: 5
+
   },
   {
     id: 'event-key-rate-down',
@@ -36,13 +32,9 @@ export const extendedMarketEvents: ExtendedMarketEvent[] = [
     vacancyModifier: -3,
     eventType: 'key_rate_change',
     mortgageRateChange: -1.5,
-    monthImpactStart: 18,
-    durationMonths: 12,
-    priceImpactPercent: 2,
-    rentImpactPercent: 0,
-    vacancyImpactPercent: -3
+
   },
-  
+
   // Строительство
   {
     id: 'event-new-construction',
@@ -57,13 +49,9 @@ export const extendedMarketEvents: ExtendedMarketEvent[] = [
     eventType: 'new_construction',
     affectsDistricts: ['Спальный район'],
     affectsPropertyTypes: ['Квартира', 'Студия'],
-    monthImpactStart: 10,
-    durationMonths: 18,
-    priceImpactPercent: -8,
-    rentImpactPercent: -3,
-    vacancyImpactPercent: 8
+
   },
-  
+
   // Расширение порта
   {
     id: 'event-port-expansion',
@@ -78,13 +66,9 @@ export const extendedMarketEvents: ExtendedMarketEvent[] = [
     eventType: 'port_expansion',
     affectsDistricts: ['Возле порта'],
     affectsPropertyTypes: ['Коммерция'],
-    monthImpactStart: 15,
-    durationMonths: 24,
-    priceImpactPercent: 15,
-    rentImpactPercent: 20,
-    vacancyImpactPercent: -10
+
   },
-  
+
   // Аномальная зима
   {
     id: 'event-anomalous-winter',
@@ -97,13 +81,9 @@ export const extendedMarketEvents: ExtendedMarketEvent[] = [
     rentIndexModifier: -15,
     vacancyModifier: 15,
     eventType: 'anomalous_winter',
-    monthImpactStart: 3,
-    durationMonths: 3,
-    priceImpactPercent: 0,
-    rentImpactPercent: -15,
-    vacancyImpactPercent: 15
+
   },
-  
+
   // Закон об аренде
   {
     id: 'event-rental-law',
@@ -116,13 +96,9 @@ export const extendedMarketEvents: ExtendedMarketEvent[] = [
     rentIndexModifier: 10,
     vacancyModifier: -5,
     eventType: 'rental_law',
-    monthImpactStart: 20,
-    durationMonths: 36,
-    priceImpactPercent: 3,
-    rentImpactPercent: 10,
-    vacancyImpactPercent: -5
+
   },
-  
+
   // Пик ремонтов
   {
     id: 'event-repair-peak',
@@ -136,11 +112,7 @@ export const extendedMarketEvents: ExtendedMarketEvent[] = [
     vacancyModifier: 0,
     eventType: 'repair_peak',
     repairCostMultiplier: 1.2,
-    monthImpactStart: 5,
-    durationMonths: 4,
-    priceImpactPercent: 0,
-    rentImpactPercent: 0,
-    vacancyImpactPercent: 0
+
   }
 ];
 
