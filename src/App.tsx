@@ -414,13 +414,15 @@ function App() {
       setEvents(newEvents);
 
       // Сохраняем состояние на сервер сразу после покупки
-      syncStateUtils.saveGameState(authState.telegramId, result.player, market, newEvents, {
-        missions: updatedMissions,
-        achievements: playerAchievements,
-        availableProperties: marketProperties.filter(p => p.id !== mortgageProperty.id)
-      }).catch(error => {
-        console.error('[App] Ошибка сохранения после покупки в ипотеку:', error);
-      });
+      if (market) {
+        syncStateUtils.saveGameState(authState.telegramId, result.player, market, newEvents, {
+          missions: updatedMissions,
+          achievements: playerAchievements,
+          availableProperties: marketProperties.filter(p => p.id !== mortgageProperty.id)
+        }).catch(error => {
+          console.error('[App] Ошибка сохранения после покупки в ипотеку:', error);
+        });
+      }
 
       // Показываем уведомление
       setNotification({
@@ -480,13 +482,15 @@ function App() {
         setEvents(newEvents);
 
         // Сохраняем состояние на сервер сразу после покупки
-        syncStateUtils.saveGameState(authState.telegramId, result.player, market, newEvents, {
-          missions: updatedMissions,
-          achievements: playerAchievements,
-          availableProperties: marketProperties.filter(p => p.id !== negotiationProperty.id)
-        }).catch(error => {
-          console.error('[App] Ошибка сохранения после покупки за наличные:', error);
-        });
+        if (market) {
+          syncStateUtils.saveGameState(authState.telegramId, result.player, market, newEvents, {
+            missions: updatedMissions,
+            achievements: playerAchievements,
+            availableProperties: marketProperties.filter(p => p.id !== negotiationProperty.id)
+          }).catch(error => {
+            console.error('[App] Ошибка сохранения после покупки за наличные:', error);
+          });
+        }
 
         // Показываем уведомление
         setNotification({
@@ -531,13 +535,15 @@ function App() {
       setEvents(newEvents);
 
       // Сохраняем состояние на сервер
-      syncStateUtils.saveGameState(authState.telegramId, updatedPlayer, market, newEvents, {
-        missions,
-        achievements: playerAchievements,
-        availableProperties: marketProperties
-      }).catch(error => {
-        console.error('[App] Ошибка сохранения после изменения стратегии:', error);
-      });
+      if (market) {
+        syncStateUtils.saveGameState(authState.telegramId, updatedPlayer, market, newEvents, {
+          missions,
+          achievements: playerAchievements,
+          availableProperties: marketProperties
+        }).catch(error => {
+          console.error('[App] Ошибка сохранения после изменения стратегии:', error);
+        });
+      }
     }
   }, [player, authState.telegramId, market, events, missions, playerAchievements, marketProperties]);
 
@@ -563,13 +569,15 @@ function App() {
     setEvents(newEvents);
 
     // Сохраняем состояние на сервер
-    syncStateUtils.saveGameState(authState.telegramId, newPlayer, market, newEvents, {
-      missions,
-      achievements: playerAchievements,
-      availableProperties: marketProperties
-    }).catch(error => {
-      console.error('[App] Ошибка сохранения после выставления на продажу:', error);
-    });
+    if (market) {
+      syncStateUtils.saveGameState(authState.telegramId, newPlayer, market, newEvents, {
+        missions,
+        achievements: playerAchievements,
+        availableProperties: marketProperties
+      }).catch(error => {
+        console.error('[App] Ошибка сохранения после выставления на продажу:', error);
+      });
+    }
 
     // Показываем уведомление
     setNotification({
@@ -621,13 +629,15 @@ function App() {
       setEvents(newEvents);
 
       // Сохраняем состояние на сервер
-      syncStateUtils.saveGameState(authState.telegramId, result.player, market, newEvents, {
-        missions: updatedMissions,
-        achievements: updatedAchievements,
-        availableProperties: marketProperties
-      }).catch(error => {
-        console.error('[App] Ошибка сохранения после начала ремонта:', error);
-      });
+      if (market) {
+        syncStateUtils.saveGameState(authState.telegramId, result.player, market, newEvents, {
+          missions: updatedMissions,
+          achievements: updatedAchievements,
+          availableProperties: marketProperties
+        }).catch(error => {
+          console.error('[App] Ошибка сохранения после начала ремонта:', error);
+        });
+      }
       
       // Показываем toast уведомление
       setToast({
@@ -685,13 +695,15 @@ function App() {
       setEvents(newEvents);
 
       // Сохраняем состояние на сервер
-      syncStateUtils.saveGameState(authState.telegramId, result.player, market, newEvents, {
-        missions,
-        achievements: playerAchievements,
-        availableProperties: marketProperties
-      }).catch(error => {
-        console.error('[App] Ошибка сохранения после взятия кредита:', error);
-      });
+      if (market) {
+        syncStateUtils.saveGameState(authState.telegramId, result.player, market, newEvents, {
+          missions,
+          achievements: playerAchievements,
+          availableProperties: marketProperties
+        }).catch(error => {
+          console.error('[App] Ошибка сохранения после взятия кредита:', error);
+        });
+      }
     } else {
       setEvents(prev => [...prev, {
         id: `error-${Date.now()}`,
